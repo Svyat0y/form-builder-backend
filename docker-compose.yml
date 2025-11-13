@@ -30,6 +30,7 @@ services:
 
 volumes:
   postgres_data:
+  pgadmin_data:
 
 networks:
   form-builder-network:
