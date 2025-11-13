@@ -7,9 +7,11 @@ import {
   Delete,
   Param,
   Get,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 class RegisterDto {
   email: string;
@@ -50,12 +52,14 @@ export class AuthController {
   }
 
   @Delete('user/:id')
+  @UseGuards(JwtAuthGuard)
   async deleteUser(@Param('id') id: string) {
     await this.usersService.deleteUser(id);
     return { message: 'User deleted successfully' };
   }
 
   @Get('users')
+  @UseGuards(JwtAuthGuard)
   async getAllUsers() {
     const users = await this.usersService.findAll();
     return users.map((user) => ({
