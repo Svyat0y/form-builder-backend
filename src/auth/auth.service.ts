@@ -3,11 +3,16 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {}
 
   async register(email: string, name: string, password: string) {
     const existingUser = await this.usersService.findByEmail(email);
@@ -15,13 +20,27 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
-    const user = await this.usersService.createUser(email, name, password);
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await this.usersService.createUser(
+      email,
+      name,
+      hashedPassword,
+    );
+
+    const token = this.jwtService.sign({
+      userId: user.id,
+      email: user.email,
+    });
 
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt,
+      },
     };
   }
 
@@ -31,15 +50,24 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    if (user.password !== password) {
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    return {
-      id: user.id,
+    const token = this.jwtService.sign({
+      userId: user.id,
       email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt,
+      },
     };
   }
 }
