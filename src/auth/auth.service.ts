@@ -28,13 +28,12 @@ export class AuthService {
       hashedPassword,
     );
 
-    const token = this.jwtService.sign({
-      userId: user.id,
-      email: user.email,
-    });
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
 
     return {
-      token,
+      ...tokens,
       user: {
         id: user.id,
         email: user.email,
@@ -55,13 +54,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const token = this.jwtService.sign({
-      userId: user.id,
-      email: user.email,
-    });
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
 
     return {
-      token,
+      ...tokens,
       user: {
         id: user.id,
         email: user.email,
@@ -69,5 +67,40 @@ export class AuthService {
         createdAt: user.createdAt,
       },
     };
+  }
+
+  private async generateTokens(userId: string, email: string) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync({ userId, email }, { expiresIn: '15m' }),
+      this.jwtService.signAsync({ userId, email }, { expiresIn: '7d' }),
+    ]);
+
+    return { accessToken, refreshToken };
+  }
+
+  async refreshTokens(refreshToken: string) {
+    const user = await this.usersService.findByRefreshToken(refreshToken);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  async logout(userId: string) {
+    await this.usersService.removeRefreshToken(userId);
   }
 }

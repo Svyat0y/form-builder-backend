@@ -10,7 +10,6 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  // create user
   async createUser(
     email: string,
     name: string,
@@ -24,17 +23,14 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  // find user by email
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { email } });
   }
 
-  // find user by id
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  // delete user by id
   async deleteUser(id: string): Promise<void> {
     const user = await this.findById(id);
 
@@ -45,8 +41,21 @@ export class UsersService {
     await this.usersRepository.remove(user);
   }
 
-  // get all users
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
+  }
+
+  async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    await this.usersRepository.update(userId, { refreshToken });
+  }
+
+  async findByRefreshToken(refreshToken: string): Promise<User | null> {
+    return this.usersRepository.findOne({
+      where: { refreshToken },
+    });
+  }
+
+  async removeRefreshToken(userId: string): Promise<void> {
+    await this.usersRepository.update(userId, { refreshToken: null });
   }
 }
