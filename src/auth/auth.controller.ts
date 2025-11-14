@@ -24,6 +24,10 @@ class LoginDto {
   password: string;
 }
 
+class RefreshTokenDto {
+  refreshToken: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -68,5 +72,19 @@ export class AuthController {
       name: user.name,
       createdAt: user.createdAt,
     }));
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() refreshData: RefreshTokenDto) {
+    return this.authService.refreshTokens(refreshData.refreshToken);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() logoutData: { userId: string }) {
+    await this.authService.logout(logoutData.userId);
+    return { message: 'Logged out successfully' };
   }
 }
