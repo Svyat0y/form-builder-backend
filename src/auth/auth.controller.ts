@@ -12,6 +12,7 @@ import {
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { Throttle } from '@nestjs/throttler';
 
 class RegisterDto {
   email: string;
@@ -36,6 +37,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async register(@Body() registerData: RegisterDto) {
     const user = await this.authService.register(
       registerData.email,
@@ -47,12 +49,20 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(@Body() loginData: LoginDto) {
     const user = await this.authService.login(
       loginData.email,
       loginData.password,
     );
     return { message: 'Login successful', user };
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async refresh(@Body() refreshData: RefreshTokenDto) {
+    return this.authService.refreshTokens(refreshData.refreshToken);
   }
 
   @Delete('user/:id')
@@ -72,12 +82,6 @@ export class AuthController {
       name: user.name,
       createdAt: user.createdAt,
     }));
-  }
-
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refresh(@Body() refreshData: RefreshTokenDto) {
-    return this.authService.refreshTokens(refreshData.refreshToken);
   }
 
   @Post('logout')
