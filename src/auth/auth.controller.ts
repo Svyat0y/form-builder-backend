@@ -4,30 +4,26 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  Delete,
-  Param,
-  Get,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { validationPipeConfig } from '../config/validation.config';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
-import { LogoutDto } from '../dto/logout.dto';
+import { ApiBearerAuth, ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
+import { UserId } from './decorators/user-id.decorator';
 
+@ApiTags('Auth')
+@ApiBearerAuth('JWT-auth')
 @Controller('auth')
 @UsePipes(validationPipeConfig)
 export class AuthController {
-  constructor(
-    private authService: AuthService,
-    private usersService: UsersService,
-  ) {}
+  constructor(private authService: AuthService) {}
 
   @Post('register')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
@@ -54,34 +50,16 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiExcludeEndpoint()
   async refresh(@Body() refreshData: RefreshTokenDto) {
     return this.authService.refreshTokens(refreshData.refreshToken);
-  }
-
-  @Delete('user/:id')
-  @UseGuards(JwtAuthGuard)
-  async deleteUser(@Param('id') id: string) {
-    await this.usersService.deleteUser(id);
-    return { message: 'User deleted successfully' };
-  }
-
-  @Get('users')
-  @UseGuards(JwtAuthGuard)
-  async getAllUsers() {
-    const users = await this.usersService.findAll();
-    return users.map((user) => ({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
-    }));
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@Body() logoutData: LogoutDto) {
-    await this.authService.logout(logoutData.userId);
+  async logout(@UserId() userId: string) {
+    await this.authService.logout(userId);
     return { message: 'Logged out successfully' };
   }
 }
