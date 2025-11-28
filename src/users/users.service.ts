@@ -1,14 +1,33 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {}
+
+  private isValidUUID(id: string): boolean {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+  }
+
+  private validateUUID(id: string): void {
+    if (!this.isValidUUID(id)) {
+      this.logger.warn(`INVALID_UUID: ${id}`);
+      throw new BadRequestException(`Invalid user ID format: ${id}`);
+    }
+  }
 
   async createUser(
     email: string,
@@ -32,9 +51,14 @@ export class UsersService {
   }
 
   async deleteUser(id: string): Promise<void> {
+    this.validateUUID(id);
+
+    this.logger.log(`USER_DELETED: ${id}`);
+
     const user = await this.findById(id);
 
     if (!user) {
+      this.logger.warn(`USER_DELETE_FAILED: User not found - ${id}`);
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
@@ -46,6 +70,8 @@ export class UsersService {
   }
 
   async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    this.validateUUID(userId);
+
     await this.usersRepository.update(userId, { refreshToken });
   }
 
@@ -56,6 +82,8 @@ export class UsersService {
   }
 
   async removeRefreshToken(userId: string): Promise<void> {
+    this.validateUUID(userId);
+
     await this.usersRepository.update(userId, { refreshToken: null });
   }
 }

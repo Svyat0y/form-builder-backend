@@ -15,13 +15,19 @@ import { validationPipeConfig } from '../config/validation.config';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserId } from './decorators/user-id.decorator';
 
 @ApiTags('Auth')
-@ApiBearerAuth('JWT-auth')
 @Controller('auth')
 @UsePipes(validationPipeConfig)
+@ApiBearerAuth('JWT-auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
@@ -58,6 +64,31 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged out successfully',
+    schema: {
+      example: {
+        message: 'Logged out successfully',
+      },
+    },
+  })
+  @ApiOperation({
+    summary: 'User logout',
+    description: `Logout user and invalidate refresh token.
+  
+    **How it works:**
+    - User ID is automatically extracted from the JWT token
+    - No need to send user ID in request body
+    - The same JWT token used for authentication is required
+    
+    **Flow:**
+    1. User authenticates and gets JWT token
+    2. JWT token contains user ID in payload
+    3. Logout uses the user ID from token to clear refresh token`,
+  })
   async logout(@UserId() userId: string) {
     await this.authService.logout(userId);
     return { message: 'Logged out successfully' };

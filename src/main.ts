@@ -4,9 +4,18 @@ import helmet from 'helmet';
 import { createCorsConfig } from './config/cors.config';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { LogLevel } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logLevels: LogLevel[] =
+    process.env.NODE_ENV === 'production'
+      ? ['log', 'warn', 'error']
+      : ['debug', 'log', 'warn', 'error'];
+
+  const app = await NestFactory.create(AppModule, {
+    logger: logLevels,
+  });
+
   const configService = app.get(ConfigService);
 
   app.use(helmet());
