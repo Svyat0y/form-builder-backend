@@ -1,10 +1,10 @@
 import {
   Controller,
   Get,
-  Delete,
-  Param,
   UseGuards,
   UsePipes,
+  Post,
+  Body,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UserResponseDto } from '../dto/user-response.dto';
+import { DeleteUserDto } from '../dto/delete-user.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -65,14 +66,23 @@ export class UsersController {
     }));
   }
 
-  @Delete(':id')
+  @Post('delete')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete user by ID' })
-  @ApiResponse({ status: 200, description: 'User deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User deleted successfully',
+    schema: {
+      example: {
+        message: 'User deleted successfully',
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid user ID format' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async deleteUser(@Param('id') id: string) {
-    await this.usersService.deleteUser(id);
+  async deleteUser(@Body() deleteUserDto: DeleteUserDto) {
+    await this.usersService.deleteUser(deleteUserDto.userId);
     return { message: 'User deleted successfully' };
   }
 }
