@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppService } from './app.service';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -10,12 +10,26 @@ import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        ttl: 6000,
-        limit: 10,
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const isDev = configService.get('NODE_ENV') === 'dev';
+
+        // Для разработки (тестов) - отключаем rate limiting
+        if (isDev) {
+          return []; // Пустой массив = нет ограничений
+        }
+
+        // Для продакшн - обычные настройки
+        return [
+          {
+            ttl: 6000,
+            limit: 10,
+          },
+        ];
       },
-    ]),
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
