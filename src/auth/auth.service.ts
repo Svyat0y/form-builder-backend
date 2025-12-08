@@ -17,6 +17,15 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  private async generateTokens(userId: string, email: string) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync({ userId, email }, { expiresIn: '60m' }),
+      this.jwtService.signAsync({ userId, email }, { expiresIn: '7d' }),
+    ]);
+
+    return { accessToken, refreshToken };
+  }
+
   async register(email: string, name: string, password: string) {
     this.logger.debug(`Registration attempt: ${email}`);
 
@@ -39,12 +48,12 @@ export class AuthService {
     this.logger.log(`USER_REGISTERED: ${email} (ID: ${user.id})`);
 
     return {
-      ...tokens,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
+        ...tokens,
       },
     };
   }
@@ -70,23 +79,14 @@ export class AuthService {
     this.logger.log(`USER_LOGGED_IN: ${email} (ID: ${user.id})`);
 
     return {
-      ...tokens,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
+        ...tokens,
       },
     };
-  }
-
-  private async generateTokens(userId: string, email: string) {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync({ userId, email }, { expiresIn: '60m' }),
-      this.jwtService.signAsync({ userId, email }, { expiresIn: '7d' }),
-    ]);
-
-    return { accessToken, refreshToken };
   }
 
   async refreshTokens(refreshToken: string) {
@@ -104,12 +104,12 @@ export class AuthService {
     this.logger.debug(`Tokens refreshed: ${user.email}`);
 
     return {
-      ...tokens,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
+        ...tokens,
       },
     };
   }

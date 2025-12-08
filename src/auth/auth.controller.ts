@@ -34,31 +34,41 @@ export class AuthController {
   @Post('register')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async register(@Body() registerData: RegisterDto) {
-    const user = await this.authService.register(
+    const result = await this.authService.register(
       registerData.email,
       registerData.name,
       registerData.password,
     );
-    return { message: 'User registered successfully', user };
+
+    return {
+      message: 'User registered successfully',
+      user: result.user,
+    };
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(@Body() loginData: LoginDto) {
-    const user = await this.authService.login(
+    const result = await this.authService.login(
       loginData.email,
       loginData.password,
     );
-    return { message: 'Login successful', user };
+    return { message: 'Login successful', user: result.user };
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @ApiExcludeEndpoint()
   async refresh(@Body() refreshData: RefreshTokenDto) {
-    return this.authService.refreshTokens(refreshData.refreshToken);
+    const result = await this.authService.refreshTokens(
+      refreshData.refreshToken,
+    );
+    return {
+      message: 'Tokens refreshed successfully',
+      user: result.user,
+    };
   }
 
   @Post('logout')

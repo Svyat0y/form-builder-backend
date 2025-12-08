@@ -69,21 +69,21 @@ export class UsersService {
     return this.usersRepository.find();
   }
 
-  async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
-    this.validateUUID(userId);
-
-    await this.usersRepository.update(userId, { refreshToken });
-  }
-
   async findByRefreshToken(refreshToken: string): Promise<User | null> {
     return this.usersRepository.findOne({
       where: { refreshToken },
     });
   }
 
+  async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    this.validateUUID(userId);
+
+    await this.usersRepository.update({ id: userId }, { refreshToken });
+  }
+
   async removeRefreshToken(userId: string): Promise<void> {
     this.validateUUID(userId);
 
-    await this.usersRepository.update(userId, { refreshToken: null });
+    await this.usersRepository.update({ id: userId }, { refreshToken: null });
   }
 }

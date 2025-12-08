@@ -1,31 +1,26 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
+import { AppController } from '../src/app.controller';
 import { ConfigModule } from '@nestjs/config';
-import { AppService } from './app.service';
+import { AppService } from '../src/app.service';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersModule } from './users/users.module';
-import { AuthModule } from './auth/auth.module';
+import { UsersModule } from '../src/users/users.module';
+import { AuthModule } from '../src/auth/auth.module';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        ttl: 6000,
-        limit: 10,
-      },
-    ]),
+    ThrottlerModule.forRoot([]),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      username: process.env.DATABASE_USERNAME || 'postgres',
-      password: process.env.DATABASE_PASSWORD || 'password',
-      database: process.env.DATABASE_NAME || 'form_builder',
+      host: 'localhost',
+      port: 5433,
+      username: 'postgres',
+      password: 'password',
+      database: 'form_builder_test',
       autoLoadEntities: true,
       synchronize: true,
     }),
@@ -41,4 +36,4 @@ import { AuthModule } from './auth/auth.module';
     },
   ],
 })
-export class AppModule {}
+export class AppTestModule {}
