@@ -1,0 +1,17 @@
+services:
+  postgres-test:
+    image: postgres:15
+    container_name: form-builder-test-db
+    environment:
+      POSTGRES_DB: form_builder_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"  # ОБЯЗАТЕЛЬНО другой порт!
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

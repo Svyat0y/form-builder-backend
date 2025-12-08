@@ -20,6 +20,9 @@
 
     "start:prod": "node dist/main",
 
+    "test:e2e:db:up": "docker compose -f docker-compose.test.yml up -d",
+    "test:e2e:db:down": "docker compose -f docker-compose.test.yml down",
+
     "version:patch": "npm version patch",
     "version:minor": "npm version minor",
     "version:major": "npm version major",
