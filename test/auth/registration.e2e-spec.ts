@@ -19,13 +19,7 @@ describe('Auth - Registration (e2e)', () => {
     app = moduleFixture.createNestApplication();
     dataSource = moduleFixture.get<DataSource>(DataSource);
 
-    // Wait for database connection
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
     await app.init();
-
-    // Sync database schema for tests
-    await dataSource.synchronize();
   });
 
   beforeEach(async () => {
@@ -41,7 +35,7 @@ describe('Auth - Registration (e2e)', () => {
     // Cleanup after all tests
     await app.close();
     if (dataSource.isInitialized) {
-      await dataSource.dropDatabase();
+      // await dataSource.dropDatabase();
       await dataSource.destroy();
     }
   });

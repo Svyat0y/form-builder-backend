@@ -21,6 +21,8 @@ import { AuthModule } from '../src/auth/auth.module';
       username: 'postgres',
       password: 'password',
       database: 'form_builder_test',
+      retryAttempts: 5,
+      retryDelay: 3000,
       autoLoadEntities: true,
       synchronize: true,
     }),
