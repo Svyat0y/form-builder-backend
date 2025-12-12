@@ -1,6 +1,6 @@
 {
   "name": "form-builder-backend",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "",
   "author": "",
   "private": true,
@@ -46,6 +46,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
+    "@faker-js/faker": "^10.1.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",

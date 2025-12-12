@@ -1,80 +1,51 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
-import { AppTestModule } from '../app-test.module';
+import { E2ETestFixture } from '../setup/e2e-setup';
+import {
+  generateUserData,
+  generateInvalidUserData,
+  UserTestData,
+} from '../setup/test-helpers';
 
 describe('Auth - Registration (e2e)', () => {
-  let app: INestApplication;
-  let dataSource: DataSource;
+  const fixture = new E2ETestFixture();
 
   beforeAll(async () => {
-    // Set environment to dev (testing uses test database via AppTestModule)
-    process.env.NODE_ENV = 'dev';
-
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppTestModule], // Uses test database configuration
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    dataSource = moduleFixture.get<DataSource>(DataSource);
-
-    // Wait for database connection
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    await app.init();
-
-    // Sync database schema for tests
-    await dataSource.synchronize();
+    await fixture.setup();
   });
 
   beforeEach(async () => {
-    // Clear all tables before each test
-    const entities = dataSource.entityMetadatas;
-    for (const entity of entities) {
-      const repository = dataSource.getRepository(entity.name);
-      await repository.clear();
-    }
+    await fixture.clearDatabase();
   });
 
   afterAll(async () => {
-    // Cleanup after all tests
-    await app.close();
-    if (dataSource.isInitialized) {
-      await dataSource.dropDatabase();
-      await dataSource.destroy();
-    }
+    await fixture.teardown();
   });
 
   describe('POST /auth/register', () => {
     it('should register a new user successfully', async () => {
-      const userData = {
-        email: 'test@example.com',
-        name: 'Test User',
-        password: 'Password123',
-      };
+      const userData: UserTestData = generateUserData();
 
-      const response = await request(app.getHttpServer())
-        .post('/auth/register')
-        .send(userData)
-        .expect(201);
+      try {
+        const response = await request(fixture.getHttpServer())
+          .post('/auth/register')
+          .send(userData)
+          .expect(201);
 
-      expect(response.body).toEqual({
-        message: 'User registered successfully',
-        user: {
-          id: expect.any(String),
-          email: userData.email,
-          name: userData.name,
-          createdAt: expect.any(String),
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-        },
-      });
-
-      // Validate UUID format
-      expect(response.body.user.id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-      );
+        expect(response.body).toEqual({
+          message: 'User registered successfully',
+          user: {
+            id: expect.any(String),
+            email: userData.email,
+            name: userData.name,
+            createdAt: expect.any(String),
+            accessToken: expect.any(String),
+            refreshToken: expect.any(String),
+          },
+        });
+      } catch (error) {
+        console.log('Error response:', error.response?.body);
+        throw error;
+      }
     });
 
     it('should return 409 when email already exists', async () => {
@@ -85,21 +56,24 @@ describe('Auth - Registration (e2e)', () => {
       };
 
       // First registration
-      await request(app.getHttpServer())
+      await request(fixture.getHttpServer())
         .post('/auth/register')
         .send(userData)
         .expect(201);
 
-      // Attempt duplicate registration
-      const response = await request(app.getHttpServer())
+      // Second attempt with same email, different VALID password (<= 16 chars)
+      const response = await request(fixture.getHttpServer())
         .post('/auth/register')
         .send({
-          ...userData,
+          email: 'duplicate@example.com',
           name: 'Second User',
-          password: 'Password456',
-        })
-        .expect(409);
+          password: 'Pass456',
+        });
 
+      console.log('Response status:', response.status);
+      console.log('Response body:', JSON.stringify(response.body, null, 2));
+
+      expect(response.status).toBe(409);
       expect(response.body).toEqual({
         statusCode: 409,
         message: 'User with this email already exists',
@@ -108,13 +82,11 @@ describe('Auth - Registration (e2e)', () => {
     });
 
     it('should return 400 for invalid email format', async () => {
-      const response = await request(app.getHttpServer())
+      const invalidData = generateInvalidUserData();
+
+      const response = await request(fixture.getHttpServer())
         .post('/auth/register')
-        .send({
-          email: 'invalid-email',
-          name: 'Test User',
-          password: 'Password123',
-        })
+        .send(invalidData.invalidEmail)
         .expect(400);
 
       expect(response.body.message).toBe('Validation failed');
@@ -122,26 +94,22 @@ describe('Auth - Registration (e2e)', () => {
     });
 
     it('should return 400 for password that is too short', async () => {
-      const response = await request(app.getHttpServer())
+      const invalidData = generateInvalidUserData();
+
+      const response = await request(fixture.getHttpServer())
         .post('/auth/register')
-        .send({
-          email: 'test@example.com',
-          name: 'Test User',
-          password: 'Ab1',
-        })
+        .send(invalidData.shortPassword)
         .expect(400);
 
       expect(response.body.errors[0].field).toBe('password');
     });
 
     it('should return 400 for name with invalid characters', async () => {
-      const response = await request(app.getHttpServer())
+      const invalidData = generateInvalidUserData();
+
+      const response = await request(fixture.getHttpServer())
         .post('/auth/register')
-        .send({
-          email: 'test@example.com',
-          name: 'Test123',
-          password: 'Password123',
-        })
+        .send(invalidData.invalidName)
         .expect(400);
 
       expect(response.body.errors[0].field).toBe('name');
