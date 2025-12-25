@@ -9,7 +9,7 @@ import { LogLevel } from '@nestjs/common';
 async function bootstrap() {
   const logLevels: LogLevel[] =
     process.env.NODE_ENV === 'production'
-      ? ['log', 'warn', 'error']
+      ? ['error']
       : ['debug', 'log', 'warn', 'error'];
 
   const app = await NestFactory.create(AppModule, {
