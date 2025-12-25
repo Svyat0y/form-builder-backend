@@ -1,21 +1,8 @@
 import request from 'supertest';
-import { E2ETestFixture } from '../setup/e2e-setup';
-import { generateUserData } from '../setup/test-helpers';
+import { getTestFixture, generateUserData } from '../setup/jest-setup';
 
 describe('Auth - Login (e2e)', () => {
-  const fixture = new E2ETestFixture();
-
-  beforeAll(async () => {
-    await fixture.setup();
-  });
-
-  beforeEach(async () => {
-    await fixture.clearDatabase();
-  });
-
-  afterAll(async () => {
-    await fixture.teardown();
-  });
+  const fixture = getTestFixture();
 
   describe('POST /auth/login', () => {
     it('should login successfully with correct credentials', async () => {
