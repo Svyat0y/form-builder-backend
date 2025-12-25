@@ -1,51 +1,34 @@
 import request from 'supertest';
-import { E2ETestFixture } from '../setup/e2e-setup';
 import {
+  getTestFixture,
   generateUserData,
   generateInvalidUserData,
-  UserTestData,
-} from '../setup/test-helpers';
+  type UserTestData,
+} from '../setup/jest-setup';
 
 describe('Auth - Registration (e2e)', () => {
-  const fixture = new E2ETestFixture();
-
-  beforeAll(async () => {
-    await fixture.setup();
-  });
-
-  beforeEach(async () => {
-    await fixture.clearDatabase();
-  });
-
-  afterAll(async () => {
-    await fixture.teardown();
-  });
+  const fixture = getTestFixture();
 
   describe('POST /auth/register', () => {
     it('should register a new user successfully', async () => {
       const userData: UserTestData = generateUserData();
 
-      try {
-        const response = await request(fixture.getHttpServer())
-          .post('/auth/register')
-          .send(userData)
-          .expect(201);
+      const response = await request(fixture.getHttpServer())
+        .post('/auth/register')
+        .send(userData)
+        .expect(201);
 
-        expect(response.body).toEqual({
-          message: 'User registered successfully',
-          user: {
-            id: expect.any(String),
-            email: userData.email,
-            name: userData.name,
-            createdAt: expect.any(String),
-            accessToken: expect.any(String),
-            refreshToken: expect.any(String),
-          },
-        });
-      } catch (error) {
-        console.log('Error response:', error.response?.body);
-        throw error;
-      }
+      expect(response.body).toEqual({
+        message: 'User registered successfully',
+        user: {
+          id: expect.any(String),
+          email: userData.email,
+          name: userData.name,
+          createdAt: expect.any(String),
+          accessToken: expect.any(String),
+          refreshToken: expect.any(String),
+        },
+      });
     });
 
     it('should return 409 when email already exists', async () => {
@@ -55,25 +38,20 @@ describe('Auth - Registration (e2e)', () => {
         password: 'Password123',
       };
 
-      // First registration
       await request(fixture.getHttpServer())
         .post('/auth/register')
         .send(userData)
         .expect(201);
 
-      // Second attempt with same email, different VALID password (<= 16 chars)
       const response = await request(fixture.getHttpServer())
         .post('/auth/register')
         .send({
           email: 'duplicate@example.com',
           name: 'Second User',
           password: 'Pass456',
-        });
+        })
+        .expect(409);
 
-      console.log('Response status:', response.status);
-      console.log('Response body:', JSON.stringify(response.body, null, 2));
-
-      expect(response.status).toBe(409);
       expect(response.body).toEqual({
         statusCode: 409,
         message: 'User with this email already exists',
