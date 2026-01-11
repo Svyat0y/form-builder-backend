@@ -7,6 +7,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import { Response } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +27,28 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async register(email: string, name: string, password: string) {
+  private setRefreshTokenCookie(res: Response, refreshToken: string) {
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: 'api/auth/refresh',
+    });
+  }
+
+  private clearRefreshTokenCookie(res: Response) {
+    res.clearCookie('refreshToken', {
+      path: 'api/auth/refresh',
+    });
+  }
+
+  async register(
+    email: string,
+    name: string,
+    password: string,
+    res?: Response,
+  ) {
     this.logger.debug(`Registration attempt: ${email}`);
 
     const existingUser = await this.usersService.findByEmail(email);
@@ -43,7 +65,9 @@ export class AuthService {
     );
     const tokens = await this.generateTokens(user.id, user.email);
 
-    await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
+    if (res) {
+      this.setRefreshTokenCookie(res, tokens.refreshToken);
+    }
 
     this.logger.log(`USER_REGISTERED: ${email} (ID: ${user.id})`);
 
@@ -53,12 +77,17 @@ export class AuthService {
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
-        ...tokens,
+        accessToken: tokens.accessToken,
       },
     };
   }
 
-  async login(email: string, password: string) {
+  async login(
+    email: string,
+    password: string,
+    rememberMe: boolean = false,
+    res?: Response,
+  ) {
     this.logger.debug(`Login attempt: ${email}`);
 
     const user = await this.usersService.findByEmail(email);
@@ -74,7 +103,14 @@ export class AuthService {
     }
 
     const tokens = await this.generateTokens(user.id, user.email);
-    await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
+
+    if (rememberMe) {
+      await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
+
+      if (res) {
+        this.setRefreshTokenCookie(res, tokens.refreshToken);
+      }
+    }
 
     this.logger.log(`USER_LOGGED_IN: ${email} (ID: ${user.id})`);
 
@@ -84,12 +120,12 @@ export class AuthService {
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
-        ...tokens,
+        accessToken: tokens.accessToken,
       },
     };
   }
 
-  async refreshTokens(refreshToken: string) {
+  async refreshTokens(refreshToken: string, res?: Response) {
     this.logger.debug('Token refresh attempt');
 
     const user = await this.usersService.findByRefreshToken(refreshToken);
@@ -101,6 +137,10 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email);
     await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
 
+    if (res) {
+      this.setRefreshTokenCookie(res, tokens.refreshToken);
+    }
+
     this.logger.debug(`Tokens refreshed: ${user.email}`);
 
     return {
@@ -109,14 +149,17 @@ export class AuthService {
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
-        ...tokens,
+        accessToken: tokens.accessToken,
       },
     };
   }
 
-  async logout(userId: string) {
+  async logout(userId: string, res?: Response) {
     this.logger.debug(`Logout: ${userId}`);
     await this.usersService.removeRefreshToken(userId);
+    if (res) {
+      this.clearRefreshTokenCookie(res);
+    }
     this.logger.debug(`User logged out: ${userId}`);
   }
 }

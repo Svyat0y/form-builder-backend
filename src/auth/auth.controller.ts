@@ -6,6 +6,9 @@ import {
   HttpStatus,
   UseGuards,
   UsePipes,
+  Res,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
@@ -14,7 +17,6 @@ import { Throttle } from '@nestjs/throttler';
 import { validationPipeConfig } from '../config/validation.config';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
-import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
@@ -23,21 +25,26 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserId } from './decorators/user-id.decorator';
+import type { Response, Request } from 'express';
 
 @ApiTags('Auth')
-@Controller('auth')
+@Controller('api/auth')
 @UsePipes(validationPipeConfig)
 @ApiBearerAuth('JWT-auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async register(@Body() registerData: RegisterDto) {
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  async register(
+    @Body() registerData: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.register(
       registerData.email,
       registerData.name,
       registerData.password,
+      res,
     );
 
     return {
@@ -48,11 +55,16 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async login(@Body() loginData: LoginDto) {
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async login(
+    @Body() loginData: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(
       loginData.email,
       loginData.password,
+      loginData.rememberMe,
+      res,
     );
     return { message: 'Login successful', user: result.user };
   }
@@ -61,10 +73,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @ApiExcludeEndpoint()
-  async refresh(@Body() refreshData: RefreshTokenDto) {
-    const result = await this.authService.refreshTokens(
-      refreshData.refreshToken,
-    );
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = (req.cookies as { refreshToken?: string })
+      ?.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+    const result = await this.authService.refreshTokens(refreshToken, res);
+
     return {
       message: 'Tokens refreshed successfully',
       user: result.user,
@@ -99,8 +119,11 @@ export class AuthController {
     2. JWT token contains user ID in payload
     3. Logout uses the user ID from token to clear refresh token`,
   })
-  async logout(@UserId() userId: string) {
-    await this.authService.logout(userId);
+  async logout(
+    @UserId() userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(userId, res);
     return { message: 'Logged out successfully' };
   }
 }

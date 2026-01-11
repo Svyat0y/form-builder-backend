@@ -5,6 +5,8 @@ import { createCorsConfig } from './config/cors.config';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { LogLevel } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
+import { UnifiedExceptionFilter } from './common/filters/unified-exception.filter';
 
 async function bootstrap() {
   const logLevels: LogLevel[] =
@@ -19,7 +21,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   app.use(helmet());
+  app.use(cookieParser());
   app.enableCors(createCorsConfig(configService));
+  app.useGlobalFilters(new UnifiedExceptionFilter());
 
   const config = new DocumentBuilder()
     .setTitle('Form Builder API')

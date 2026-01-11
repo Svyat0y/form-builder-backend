@@ -40,13 +40,18 @@ export class RegisterDto {
     minLength: 6,
     maxLength: 16,
   })
-  @IsString({ message: 'Password must be a string' })
-  @IsNotEmpty({ message: 'Password is required' })
-  @MinLength(6, { message: 'Password must be at least 6 characters long' })
-  @MaxLength(16, { message: 'Password must be less than 16 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message:
-      'Password must contain at least one lowercase letter, one uppercase letter, and one number',
+  @IsString({ message: 'Must be a string' })
+  @IsNotEmpty({ message: 'Required field' })
+  @MinLength(6, { message: 'At least 6 characters' })
+  @MaxLength(16, { message: 'Maximum 16 characters' })
+  @Matches(/^(?=.*[a-z])/, {
+    message: 'Needs a lowercase letter',
+  })
+  @Matches(/^(?=.*[A-Z])/, {
+    message: 'Needs an uppercase letter',
+  })
+  @Matches(/^(?=.*\d)/, {
+    message: 'Needs a number',
   })
   password: string;
 }
