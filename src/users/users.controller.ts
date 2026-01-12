@@ -5,6 +5,7 @@ import {
   UsePipes,
   Post,
   Body,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UsersService } from './users.service';
@@ -17,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { DeleteUserDto } from '../dto/delete-user.dto';
+import { UserId } from '../auth/decorators/user-id.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -84,5 +86,23 @@ export class UsersController {
   async deleteUser(@Body() deleteUserDto: DeleteUserDto) {
     await this.usersService.deleteUser(deleteUserDto.userId);
     return { message: 'User deleted successfully' };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getCurrentUser(@UserId() userId: string) {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+    };
   }
 }

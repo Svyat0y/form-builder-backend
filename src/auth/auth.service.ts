@@ -9,6 +9,12 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 
+const TOKEN_CONFIG = {
+  ACCESS_TOKEN_EXPIRES_IN: '60m',
+  REFRESH_TOKEN_EXPIRES_IN: '7d',
+  REFRESH_TOKEN_COOKIE_MAX_AGE: 7 * 24 * 60 * 60 * 1000,
+} as const;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -20,8 +26,14 @@ export class AuthService {
 
   private async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync({ userId, email }, { expiresIn: '60m' }),
-      this.jwtService.signAsync({ userId, email }, { expiresIn: '7d' }),
+      this.jwtService.signAsync(
+        { userId, email },
+        { expiresIn: TOKEN_CONFIG.ACCESS_TOKEN_EXPIRES_IN },
+      ),
+      this.jwtService.signAsync(
+        { userId, email },
+        { expiresIn: TOKEN_CONFIG.REFRESH_TOKEN_EXPIRES_IN },
+      ),
     ]);
 
     return { accessToken, refreshToken };
@@ -31,24 +43,19 @@ export class AuthService {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: 'api/auth/refresh',
+      sameSite: 'lax',
+      maxAge: TOKEN_CONFIG.REFRESH_TOKEN_COOKIE_MAX_AGE,
+      path: '/',
     });
   }
 
   private clearRefreshTokenCookie(res: Response) {
     res.clearCookie('refreshToken', {
-      path: 'api/auth/refresh',
+      path: '/',
     });
   }
 
-  async register(
-    email: string,
-    name: string,
-    password: string,
-    res?: Response,
-  ) {
+  async register(email: string, name: string, password: string) {
     this.logger.debug(`Registration attempt: ${email}`);
 
     const existingUser = await this.usersService.findByEmail(email);
@@ -63,11 +70,6 @@ export class AuthService {
       name,
       hashedPassword,
     );
-    const tokens = await this.generateTokens(user.id, user.email);
-
-    if (res) {
-      this.setRefreshTokenCookie(res, tokens.refreshToken);
-    }
 
     this.logger.log(`USER_REGISTERED: ${email} (ID: ${user.id})`);
 
@@ -77,7 +79,6 @@ export class AuthService {
         email: user.email,
         name: user.name,
         createdAt: user.createdAt,
-        accessToken: tokens.accessToken,
       },
     };
   }
@@ -110,6 +111,10 @@ export class AuthService {
       if (res) {
         this.setRefreshTokenCookie(res, tokens.refreshToken);
       }
+    } else {
+      if (res) {
+        this.clearRefreshTokenCookie(res);
+      }
     }
 
     this.logger.log(`USER_LOGGED_IN: ${email} (ID: ${user.id})`);
@@ -135,6 +140,7 @@ export class AuthService {
     }
 
     const tokens = await this.generateTokens(user.id, user.email);
+
     await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
 
     if (res) {
@@ -156,10 +162,13 @@ export class AuthService {
 
   async logout(userId: string, res?: Response) {
     this.logger.debug(`Logout: ${userId}`);
+
     await this.usersService.removeRefreshToken(userId);
+
     if (res) {
       this.clearRefreshTokenCookie(res);
     }
+
     this.logger.debug(`User logged out: ${userId}`);
   }
 }
