@@ -36,15 +36,11 @@ export class AuthController {
 
   @Post('register')
   @Throttle({ default: { limit: 8, ttl: 60000 } })
-  async register(
-    @Body() registerData: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async register(@Body() registerData: RegisterDto) {
     const result = await this.authService.register(
       registerData.email,
       registerData.name,
       registerData.password,
-      res,
     );
 
     return {
