@@ -22,14 +22,15 @@ import { UserId } from '../auth/decorators/user-id.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
-@Controller('users')
+@Controller('api/users')
+@UseGuards(JwtAuthGuard)
 @UsePipes(validationPipeConfig)
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all users' })
+  @UseGuards(JwtAuthGuard)
   @ApiResponse({
     status: 200,
     description: 'Returns array of users',
@@ -69,8 +70,8 @@ export class UsersController {
   }
 
   @Post('delete')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete user by ID' })
+  @UseGuards(JwtAuthGuard)
   @ApiResponse({
     status: 200,
     description: 'User deleted successfully',
@@ -83,14 +84,15 @@ export class UsersController {
   @ApiResponse({ status: 400, description: 'Invalid user ID format' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
+  @UseGuards(JwtAuthGuard)
   async deleteUser(@Body() deleteUserDto: DeleteUserDto) {
     await this.usersService.deleteUser(deleteUserDto.userId);
     return { message: 'User deleted successfully' };
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   async getCurrentUser(@UserId() userId: string) {
     const user = await this.usersService.findById(userId);
 
