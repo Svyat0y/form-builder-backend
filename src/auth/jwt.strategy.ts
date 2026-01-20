@@ -1,4 +1,3 @@
-// auth/strategies/jwt.strategy.ts
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -38,35 +37,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const authHeader = req.headers['authorization'];
     const accessToken = authHeader?.replace('Bearer ', '');
 
-    this.logger.debug(`Validating JWT for user: ${payload.userId}`);
-    this.logger.debug(
-      `Access token from header: ${accessToken?.substring(0, 30)}...`,
-    );
-
     if (!accessToken) {
       this.logger.warn('No access token in Authorization header');
       throw new UnauthorizedException('Token not found');
     }
 
-    // Проверяем токен в БД
     const tokenInDb = await this.tokenService.findValidAccessToken(accessToken);
 
     this.logger.debug(`Token found in DB: ${!!tokenInDb}`);
 
-    if (tokenInDb) {
-      this.logger.debug(`Token ID in DB: ${tokenInDb.id}`);
-      this.logger.debug(`Token revoked: ${tokenInDb.revoked}`);
-      this.logger.debug(`Token expires at: ${tokenInDb.expiresAt}`);
-      this.logger.debug(`Current time: ${new Date()}`);
-      this.logger.debug(
-        `Is token expired? ${tokenInDb.expiresAt < new Date()}`,
-      );
-    }
-
     if (!tokenInDb) {
-      this.logger.warn(
-        `Token NOT FOUND in database for user ${payload.userId}`,
-      );
       throw new UnauthorizedException('Token revoked or expired');
     }
 

@@ -1,4 +1,3 @@
-// src/auth/services/token.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
@@ -6,7 +5,7 @@ import { Token } from './token.entity';
 
 @Injectable()
 export class TokenService {
-  private readonly logger = new Logger(TokenService.name)
+  private readonly logger = new Logger(TokenService.name);
   constructor(
     @InjectRepository(Token)
     private tokenRepository: Repository<Token>,
@@ -50,7 +49,6 @@ export class TokenService {
       });
 
       return token || null;
-
     } catch (error) {
       this.logger.error(`Error in findValidAccessToken: ${error.message}`);
       return null;
