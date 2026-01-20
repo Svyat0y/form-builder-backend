@@ -62,7 +62,7 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    await this.usersRepository.remove(user);
+    await this.usersRepository.delete(id);
   }
 
   async findAll(): Promise<User[]> {

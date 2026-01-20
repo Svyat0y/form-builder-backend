@@ -57,9 +57,6 @@ export class AuthController {
       (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
       req.socket.remoteAddress;
 
-    console.log('Device:', deviceInfo);
-    console.log('IP:', ipAddress);
-
     const result = await this.authService.login(
       loginData.email,
       loginData.password,
