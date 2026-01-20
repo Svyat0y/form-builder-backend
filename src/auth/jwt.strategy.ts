@@ -32,7 +32,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       passReqToCallback: true,
     });
   }
-
   async validate(req: Request, payload: JwtPayload) {
     const authHeader = req.headers['authorization'];
     const accessToken = authHeader?.replace('Bearer ', '');
@@ -42,6 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Token not found');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const tokenInDb = await this.tokenService.findValidAccessToken(accessToken);
 
     this.logger.debug(`Token found in DB: ${!!tokenInDb}`);

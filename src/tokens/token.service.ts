@@ -60,7 +60,7 @@ export class TokenService {
       where: {
         refreshToken,
         revoked: false,
-        expiresAt: new Date(),
+        expiresAt: MoreThan(new Date()),
       },
       relations: ['user'],
     });

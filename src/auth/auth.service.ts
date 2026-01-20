@@ -88,8 +88,6 @@ export class AuthService {
     deviceInfo?: string,
     ipAddress?: string,
   ) {
-    this.logger.debug(`Login attempt: ${email}`);
-
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       this.logger.warn(`LOGIN_FAILED: User not found - ${email}`);
@@ -101,6 +99,8 @@ export class AuthService {
       this.logger.warn(`LOGIN_FAILED: Invalid password - ${email}`);
       throw new UnauthorizedException('Invalid email or password');
     }
+
+    await this.tokenService.revokeAllUserTokens(user.id);
 
     const tokens = await this.generateTokens(user.id, user.email);
 
@@ -162,16 +162,16 @@ export class AuthService {
       tokenEntity.user.email,
     );
 
-    await this.tokenService.revokeToken(tokenEntity.accessToken);
+    const hadRefreshToken = !!tokenEntity.refreshToken;
 
     await this.tokenService.createToken(
       tokenEntity.user.id,
       tokens.accessToken,
-      tokens.refreshToken,
+      hadRefreshToken ? tokens.refreshToken : undefined,
       TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
     );
 
-    if (res) {
+    if (hadRefreshToken && res) {
       this.setRefreshTokenCookie(res, tokens.refreshToken);
     }
 
