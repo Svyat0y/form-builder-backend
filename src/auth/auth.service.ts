@@ -8,12 +8,8 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
-
-const TOKEN_CONFIG = {
-  ACCESS_TOKEN_EXPIRES_IN: '60m',
-  REFRESH_TOKEN_EXPIRES_IN: '7d',
-  REFRESH_TOKEN_COOKIE_MAX_AGE: 7 * 24 * 60 * 60 * 1000,
-} as const;
+import { TokenService } from '../tokens/token.service';
+import { TOKEN_CONSTANTS } from '../tokens/token.constants';
 
 @Injectable()
 export class AuthService {
@@ -22,17 +18,18 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private tokenService: TokenService,
   ) {}
 
   private async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         { userId, email },
-        { expiresIn: TOKEN_CONFIG.ACCESS_TOKEN_EXPIRES_IN },
+        { expiresIn: TOKEN_CONSTANTS.ACCESS_TOKEN_EXPIRES_IN },
       ),
       this.jwtService.signAsync(
         { userId, email },
-        { expiresIn: TOKEN_CONFIG.REFRESH_TOKEN_EXPIRES_IN },
+        { expiresIn: TOKEN_CONSTANTS.REFRESH_TOKEN_EXPIRES_IN },
       ),
     ]);
 
@@ -44,7 +41,7 @@ export class AuthService {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: TOKEN_CONFIG.REFRESH_TOKEN_COOKIE_MAX_AGE,
+      maxAge: TOKEN_CONSTANTS.REFRESH_TOKEN_COOKIE_MAX_AGE,
       path: '/',
     });
   }
@@ -88,6 +85,8 @@ export class AuthService {
     password: string,
     rememberMe: boolean = false,
     res?: Response,
+    deviceInfo?: string,
+    ipAddress?: string,
   ) {
     this.logger.debug(`Login attempt: ${email}`);
 
@@ -105,9 +104,16 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user.id, user.email);
 
-    if (rememberMe) {
-      await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
+    await this.tokenService.createToken(
+      user.id,
+      tokens.accessToken,
+      rememberMe ? tokens.refreshToken : undefined,
+      TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+      deviceInfo,
+      ipAddress,
+    );
 
+    if (rememberMe) {
       if (res) {
         this.setRefreshTokenCookie(res, tokens.refreshToken);
       }
@@ -133,37 +139,69 @@ export class AuthService {
   async refreshTokens(refreshToken: string, res?: Response) {
     this.logger.debug('Token refresh attempt');
 
-    const user = await this.usersService.findByRefreshToken(refreshToken);
-    if (!user) {
-      this.logger.warn('REFRESH_TOKEN_FAILED: Invalid token');
+    const tokenEntity =
+      await this.tokenService.findValidRefreshToken(refreshToken);
+
+    if (!tokenEntity) {
+      this.logger.warn('REFRESH_TOKEN_FAILED: Token not found');
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    if (tokenEntity.revoked) {
+      this.logger.warn(
+        `POSSIBLE_TOKEN_THEFT: Revoked refresh token used for user ${tokenEntity.userId}`,
+      );
+      await this.tokenService.revokeAllUserTokens(tokenEntity.userId);
+      throw new UnauthorizedException('Security violation detected');
+    }
 
-    await this.usersService.saveRefreshToken(user.id, tokens.refreshToken);
+    await this.tokenService.revokeTokenByRefresh(refreshToken);
+
+    const tokens = await this.generateTokens(
+      tokenEntity.user.id,
+      tokenEntity.user.email,
+    );
+
+    await this.tokenService.revokeToken(tokenEntity.accessToken);
+
+    await this.tokenService.createToken(
+      tokenEntity.user.id,
+      tokens.accessToken,
+      tokens.refreshToken,
+      TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+    );
 
     if (res) {
       this.setRefreshTokenCookie(res, tokens.refreshToken);
     }
 
-    this.logger.debug(`Tokens refreshed: ${user.email}`);
+    this.logger.debug(`Tokens refreshed: ${tokenEntity.user.email}`);
 
     return {
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
+        id: tokenEntity.user.id,
+        email: tokenEntity.user.email,
+        name: tokenEntity.user.name,
+        createdAt: tokenEntity.user.createdAt,
         accessToken: tokens.accessToken,
       },
     };
   }
 
-  async logout(userId: string, res?: Response) {
+  async logout(userId: string, accessToken?: string, res?: Response) {
     this.logger.debug(`Logout: ${userId}`);
 
-    await this.usersService.removeRefreshToken(userId);
+    if (accessToken) {
+      await this.tokenService.revokeToken(accessToken);
+
+      const tokenEntity =
+        await this.tokenService.findValidAccessToken(accessToken);
+      if (tokenEntity?.refreshToken) {
+        await this.tokenService.revokeTokenByRefresh(tokenEntity.refreshToken);
+      }
+    } else {
+      await this.tokenService.revokeAllUserTokens(userId);
+    }
 
     if (res) {
       this.clearRefreshTokenCookie(res);

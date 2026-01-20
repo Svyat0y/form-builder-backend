@@ -17,13 +17,7 @@ import { Throttle } from '@nestjs/throttler';
 import { validationPipeConfig } from '../config/validation.config';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
-import {
-  ApiBearerAuth,
-  ApiExcludeEndpoint,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import { UserId } from './decorators/user-id.decorator';
 import type { Response, Request } from 'express';
 
@@ -51,17 +45,30 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async login(
     @Body() loginData: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const deviceInfo = req.headers['user-agent'] || 'Unknown';
+
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      req.socket.remoteAddress;
+
+    console.log('Device:', deviceInfo);
+    console.log('IP:', ipAddress);
+
     const result = await this.authService.login(
       loginData.email,
       loginData.password,
       loginData.rememberMe,
       res,
+      deviceInfo,
+      ipAddress,
     );
+
     return { message: 'Login successful', user: result.user };
   }
 
@@ -90,36 +97,16 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'User logout' })
-  @ApiResponse({
-    status: 200,
-    description: 'Logged out successfully',
-    schema: {
-      example: {
-        message: 'Logged out successfully',
-      },
-    },
-  })
-  @ApiOperation({
-    summary: 'User logout',
-    description: `Logout user and invalidate refresh token.
-  
-    **How it works:**
-    - User ID is automatically extracted from the JWT token
-    - No need to send user ID in request body
-    - The same JWT token used for authentication is required
-    
-    **Flow:**
-    1. User authenticates and gets JWT token
-    2. JWT token contains user ID in payload
-    3. Logout uses the user ID from token to clear refresh token`,
-  })
   async logout(
     @UserId() userId: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    await this.authService.logout(userId, res);
+    const authHeader = req.headers.authorization;
+    const accessToken = authHeader?.replace('Bearer ', '');
+
+    await this.authService.logout(userId, accessToken, res);
+
     return { message: 'Logged out successfully' };
   }
 }

@@ -68,22 +68,4 @@ export class UsersService {
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
   }
-
-  async findByRefreshToken(refreshToken: string): Promise<User | null> {
-    return this.usersRepository.findOne({
-      where: { refreshToken },
-    });
-  }
-
-  async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
-    this.validateUUID(userId);
-
-    await this.usersRepository.update({ id: userId }, { refreshToken });
-  }
-
-  async removeRefreshToken(userId: string): Promise<void> {
-    this.validateUUID(userId);
-
-    await this.usersRepository.update({ id: userId }, { refreshToken: null });
-  }
 }
