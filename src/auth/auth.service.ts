@@ -4,10 +4,10 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
+import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { Response } from 'express';
 import { TokenService } from '../tokens/token.service';
 import { TOKEN_CONSTANTS } from '../tokens/token.constants';
 import { generateDeviceFingerprint } from '../tokens/device-fingerprint.util';
