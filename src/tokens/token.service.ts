@@ -15,9 +15,6 @@ export class TokenService {
     userId: string,
     deviceFingerprint: string,
   ): Promise<Token | null> {
-    // Ищем существующий токен по deviceFingerprint
-    // НЕ проверяем expiresAt, потому что refresh token может быть еще жив
-    // даже если access token истек
     return this.tokenRepository.findOne({
       where: {
         userId,
@@ -26,7 +23,7 @@ export class TokenService {
       },
       relations: ['user'],
       order: {
-        lastUsed: 'DESC', // Берем самый свежий, если их несколько
+        lastUsed: 'DESC',
       },
     });
   }
