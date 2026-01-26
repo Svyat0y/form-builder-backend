@@ -26,7 +26,6 @@ export const createCorsConfig = (configService: ConfigService) => {
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.log('🚫 CORS blocked for origin:', origin);
         callback(new Error(`Origin ${origin} not allowed by CORS`));
       }
     },

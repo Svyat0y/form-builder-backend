@@ -5,16 +5,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
+import { TokensModule } from '../tokens/tokens.module';
 import { JwtStrategy } from './jwt.strategy';
 import { User } from '../users/user.entity';
-import { Token } from '../tokens/token.entity';
-import { TokenService } from '../tokens/token.service';
 
 @Module({
   imports: [
     UsersModule,
+    TokensModule,
 
-    TypeOrmModule.forFeature([User, Token]),
+    TypeOrmModule.forFeature([User]),
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -27,8 +27,8 @@ import { TokenService } from '../tokens/token.service';
 
     ConfigModule,
   ],
-  providers: [AuthService, JwtStrategy, TokenService],
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
-  exports: [JwtModule, AuthService, TokenService],
+  exports: [JwtModule, AuthService],
 })
 export class AuthModule {}

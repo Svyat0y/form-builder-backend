@@ -62,6 +62,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     this.logger.debug(`Token validation SUCCESS for user ${payload.userId}`);
 
+    await this.tokenService.updateLastUsed(tokenInDb.id);
+
     return {
       userId: payload.userId,
       email: payload.email,
