@@ -1,40 +1,48 @@
 ---
-description: Правила структуры проекта и best practices для NestJS
+description: Project structure rules and best practices for NestJS
 alwaysApply: true
 ---
 
-# Правила структуры проекта
+# Project Structure Rules
 
-## Основные принципы
+## Core Principles
 
-При разработке необходимо придерживаться структуры проекта согласно best practices для NestJS и используемых технологий.
+When developing, follow the project structure according to NestJS best practices and the technologies used.
 
-### Структура модулей
+### Module Structure
 
-Каждый функциональный модуль должен следовать следующей структуре:
+Each functional module should follow this structure:
 
 ```
 module-name/
-  ├── module-name.module.ts      # Модуль NestJS
-  ├── module-name.controller.ts  # Контроллер (если есть API endpoints)
-  ├── module-name.service.ts     # Бизнес-логика
-  ├── module-name.entity.ts      # TypeORM entity (если есть)
-  ├── dto/                       # DTO для этого модуля (если специфичные)
-  ├── decorators/                # Кастомные декораторы (если есть)
-  └── guards/                    # Guards (если есть)
+  ├── module-name.module.ts      # NestJS module
+  ├── module-name.controller.ts  # Controller (if API endpoints exist)
+  ├── module-name.service.ts     # Business logic
+  ├── module-name.entity.ts      # TypeORM entity (if exists)
+  ├── dto/                       # DTOs for this module (if module-specific)
+  ├── decorators/                # Custom decorators (if exist)
+  └── guards/                    # Guards (if exist)
 ```
 
-### Расположение общих компонентов
+### Common Components Location
 
-- **DTO**: Общие DTO размещаются в `src/dto/`, специфичные для модуля - внутри модуля
-- **Entities**: Размещаются внутри соответствующего модуля
-- **Common компоненты**: Фильтры, пайпы, guards, interceptors - в `src/common/`
-- **Config**: Конфигурационные файлы - в `src/config/`
-- **Types**: Глобальные типы и расширения - в `src/types/`
+- **DTOs**: Shared DTOs are placed in `src/dto/`, module-specific DTOs - inside the module
+- **Entities**: Placed inside the corresponding module
+- **Common components**: Filters, pipes, guards, interceptors - in `src/common/`
+- **Config**: Configuration files - in `src/config/`
+- **Types**: Global types and extensions - in `src/types/`
 
-### Принципы организации кода
+### Code Organization Principles
 
-1. **Модульность**: Каждый функциональный блок должен быть отдельным модулем
-2. **Разделение ответственности**: Controller → Service → Repository/Entity
-3. **DRY**: Избегать дублирования кода, выносить общую логику в сервисы или common компоненты
-4. **Именование**: Использовать согласованные имена файлов и классов согласно NestJS conventions
+1. **Modularity**: Each functional block should be a separate module
+2. **Separation of concerns**: Controller → Service → Repository/Entity
+3. **DRY**: Avoid code duplication, extract common logic into services or common components
+4. **Naming**: Use consistent file and class names according to NestJS conventions
+
+## Code Comments
+
+- **Comments should only be added when necessary** - code should be self-explanatory through good naming and structure
+- **All comments must be written in English** - this applies to both inline comments and documentation comments
+- Avoid obvious comments that simply restate what the code does
+- Use comments to explain "why" rather than "what" when the reason is not immediately clear
+- JSDoc comments for public APIs and complex functions are encouraged

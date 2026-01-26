@@ -17,7 +17,8 @@ export default async function globalSetup(): Promise<void> {
 }
 
 export function getGlobalFixture(): E2ETestFixture {
-  const fixture = (global as any).__E2E_FIXTURE__;
+  const fixture = (global as { __E2E_FIXTURE__?: E2ETestFixture })
+    .__E2E_FIXTURE__;
 
   if (!fixture) {
     throw new Error(

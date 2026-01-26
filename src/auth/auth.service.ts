@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 import { TokenService } from '../tokens/token.service';
 import { TOKEN_CONSTANTS } from '../tokens/token.constants';
+import { generateDeviceFingerprint } from '../tokens/device-fingerprint.util';
 
 @Injectable()
 export class AuthService {
@@ -100,21 +101,55 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    await this.tokenService.revokeAllUserTokens(user.id);
-
-    const tokens = await this.generateTokens(user.id, user.email);
-
-    await this.tokenService.createToken(
-      user.id,
-      tokens.accessToken,
-      rememberMe ? tokens.refreshToken : undefined,
-      TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
-      deviceInfo,
+    const deviceFingerprint = generateDeviceFingerprint(
+      deviceInfo || 'Unknown',
       ipAddress,
     );
 
+    const existingToken = await this.tokenService.findTokenByDeviceFingerprint(
+      user.id,
+      deviceFingerprint,
+    );
+
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    if (existingToken) {
+      this.logger.debug(
+        `Updating existing token for device ${deviceFingerprint.substring(0, 8)}...`,
+      );
+      await this.tokenService.updateToken(
+        existingToken.id,
+        tokens.accessToken,
+        rememberMe ? tokens.refreshToken : null,
+        TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+      );
+    } else {
+      const activeSessionsCount =
+        await this.tokenService.getActiveSessionsCount(user.id);
+
+      if (activeSessionsCount >= TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS) {
+        await this.tokenService.revokeOldestSessions(
+          user.id,
+          TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS - 1,
+        );
+      }
+
+      this.logger.debug(
+        `Creating new token for device ${deviceFingerprint.substring(0, 8)}...`,
+      );
+      await this.tokenService.createToken(
+        user.id,
+        tokens.accessToken,
+        rememberMe ? tokens.refreshToken : null,
+        TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+        deviceInfo || 'Unknown',
+        ipAddress || 'Unknown',
+        deviceFingerprint,
+      );
+    }
+
     if (rememberMe) {
-      if (res) {
+      if (res && tokens.refreshToken) {
         this.setRefreshTokenCookie(res, tokens.refreshToken);
       }
     } else {
@@ -123,7 +158,9 @@ export class AuthService {
       }
     }
 
-    this.logger.log(`USER_LOGGED_IN: ${email} (ID: ${user.id})`);
+    this.logger.log(
+      `USER_LOGGED_IN: ${email} (ID: ${user.id}, Device: ${deviceFingerprint.substring(0, 8)}...)`,
+    );
 
     return {
       user: {
@@ -155,8 +192,6 @@ export class AuthService {
       throw new UnauthorizedException('Security violation detected');
     }
 
-    await this.tokenService.revokeTokenByRefresh(refreshToken);
-
     const tokens = await this.generateTokens(
       tokenEntity.user.id,
       tokenEntity.user.email,
@@ -164,14 +199,16 @@ export class AuthService {
 
     const hadRefreshToken = !!tokenEntity.refreshToken;
 
-    await this.tokenService.createToken(
-      tokenEntity.user.id,
+    await this.tokenService.updateToken(
+      tokenEntity.id,
       tokens.accessToken,
-      hadRefreshToken ? tokens.refreshToken : undefined,
+      hadRefreshToken ? tokens.refreshToken : null,
       TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
     );
 
-    if (hadRefreshToken && res) {
+    await this.tokenService.updateLastUsed(tokenEntity.id);
+
+    if (hadRefreshToken && res && tokens.refreshToken) {
       this.setRefreshTokenCookie(res, tokens.refreshToken);
     }
 

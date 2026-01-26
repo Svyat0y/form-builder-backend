@@ -11,23 +11,111 @@ export class TokenService {
     private tokenRepository: Repository<Token>,
   ) {}
 
+  async findTokenByDeviceFingerprint(
+    userId: string,
+    deviceFingerprint: string,
+  ): Promise<Token | null> {
+    return this.tokenRepository.findOne({
+      where: {
+        userId,
+        deviceFingerprint,
+        revoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+      relations: ['user'],
+    });
+  }
+
+  async getActiveSessionsCount(userId: string): Promise<number> {
+    return this.tokenRepository.count({
+      where: {
+        userId,
+        revoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+    });
+  }
+
+  async revokeOldestSessions(userId: string, keepCount: number): Promise<void> {
+    const activeTokens = await this.tokenRepository.find({
+      where: {
+        userId,
+        revoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+      order: {
+        lastUsed: 'ASC',
+      },
+    });
+
+    if (activeTokens.length > keepCount) {
+      const tokensToRevoke = activeTokens.slice(
+        0,
+        activeTokens.length - keepCount,
+      );
+      const idsToRevoke = tokensToRevoke.map((token) => token.id);
+
+      await this.tokenRepository.update(
+        { id: idsToRevoke as any },
+        { revoked: true },
+      );
+
+      this.logger.log(
+        `Revoked ${tokensToRevoke.length} oldest sessions for user ${userId}`,
+      );
+    }
+  }
+
+  async updateToken(
+    tokenId: string,
+    accessToken: string,
+    refreshToken: string | null,
+    expiresIn: number,
+  ): Promise<Token> {
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+    await this.tokenRepository.update(tokenId, {
+      accessToken,
+      refreshToken,
+      expiresAt,
+      lastUsed: new Date(),
+      revoked: false,
+    });
+
+    const updatedToken = await this.tokenRepository.findOne({
+      where: { id: tokenId },
+      relations: ['user'],
+    });
+
+    if (!updatedToken) {
+      throw new Error(`Token ${tokenId} not found after update`);
+    }
+
+    return updatedToken;
+  }
+
   async createToken(
     userId: string,
     accessToken: string,
-    refreshToken?: string,
-    expiresIn: number = 3600,
-    deviceInfo?: string,
-    ipAddress?: string,
+    refreshToken: string | null,
+    expiresIn: number,
+    deviceInfo: string,
+    ipAddress: string,
+    deviceFingerprint: string,
   ): Promise<Token> {
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    const now = new Date();
 
     const token = this.tokenRepository.create({
       userId,
       accessToken,
-      refreshToken: refreshToken || null,
+      refreshToken,
       expiresAt,
-      deviceInfo: deviceInfo || null,
-      ipAddress: ipAddress || null,
+      deviceInfo,
+      ipAddress,
+      deviceFingerprint,
+      lastUsed: now,
+      revoked: false,
     });
 
     return this.tokenRepository.save(token);
@@ -66,6 +154,12 @@ export class TokenService {
     });
   }
 
+  async updateLastUsed(tokenId: string): Promise<void> {
+    await this.tokenRepository.update(tokenId, {
+      lastUsed: new Date(),
+    });
+  }
+
   async revokeToken(accessToken: string): Promise<void> {
     await this.tokenRepository.update({ accessToken }, { revoked: true });
   }
@@ -90,5 +184,25 @@ export class TokenService {
         revoked: true,
       })
       .execute();
+  }
+
+  async getUserActiveSessions(userId: string): Promise<Token[]> {
+    return this.tokenRepository.find({
+      where: {
+        userId,
+        revoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+      order: {
+        lastUsed: 'DESC',
+      },
+    });
+  }
+
+  async revokeSessionByTokenId(tokenId: string, userId: string): Promise<void> {
+    await this.tokenRepository.update(
+      { id: tokenId, userId },
+      { revoked: true },
+    );
   }
 }

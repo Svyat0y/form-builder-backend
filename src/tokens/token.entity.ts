@@ -39,4 +39,10 @@ export class Token {
 
   @Column({ type: 'varchar', nullable: true })
   ipAddress: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  deviceFingerprint: string | null;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  lastUsed: Date;
 }
