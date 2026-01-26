@@ -12,11 +12,11 @@ import {
 } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { validationPipeConfig } from '../config/validation.config';
-import { RegisterDto } from '../dto/register.dto';
-import { LoginDto } from '../dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import { ApiBearerAuth, ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import { UserId } from './decorators/user-id.decorator';
 import type { Response, Request } from 'express';

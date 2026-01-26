@@ -7,7 +7,7 @@ import {
   Body,
   NotFoundException,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import { validationPipeConfig } from '../config/validation.config';
 import {
@@ -17,7 +17,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UserResponseDto } from '../dto/user-response.dto';
-import { DeleteUserDto } from '../dto/delete-user.dto';
+import { DeleteUserDto } from './dto/delete-user.dto';
 import { UserId } from '../auth/decorators/user-id.decorator';
 
 @ApiTags('Users')
