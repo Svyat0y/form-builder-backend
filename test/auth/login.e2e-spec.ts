@@ -10,18 +10,15 @@ describe('Auth - Login (e2e)', () => {
   const fixture = getTestFixture();
   const server = () => fixture.getHttpServer();
 
-  // Clear database before this test suite
   beforeAll(async () => {
     await fixture.clearDatabase();
   });
 
   describe('POST /api/auth/login', () => {
     it('should login successfully with correct credentials', async () => {
-      // Create user using helper
       const userData = generateUserData();
       await registerUser(server(), userData);
 
-      // Login with credentials
       const response = await loginUser(server(), {
         email: userData.email,
         password: userData.password,

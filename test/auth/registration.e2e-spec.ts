@@ -11,7 +11,6 @@ describe('Auth - Registration (e2e)', () => {
   const fixture = getTestFixture();
   const server = () => fixture.getHttpServer();
 
-  // Clear database before this test suite to ensure clean state
   beforeAll(async () => {
     await fixture.clearDatabase();
   });
@@ -37,17 +36,14 @@ describe('Auth - Registration (e2e)', () => {
     });
 
     it('should return 409 when email already exists', async () => {
-      // Use unique email for this test
       const userData = generateUserData();
 
-      // Register first user
       await registerUser(server(), userData);
 
-      // Try to register again with same email
       const response = await request(server())
         .post('/api/auth/register')
         .send({
-          email: userData.email, // Same email
+          email: userData.email,
           name: 'Different Name',
           password: 'DifferentPass123',
         })

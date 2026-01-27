@@ -5,27 +5,23 @@ describe('Auth - Refresh Token (e2e)', () => {
   const fixture = getTestFixture();
   const server = () => fixture.getHttpServer();
 
-  // Clear database before this test suite
   beforeAll(async () => {
     await fixture.clearDatabase();
   });
 
   describe('POST /api/auth/refresh', () => {
     it('should refresh tokens successfully', async () => {
-      // Create authenticated user
       const { userData } = await createAuthenticatedUser(server());
 
-      // Login with rememberMe to get refresh token in cookie
       const loginResponse = await request(server())
         .post('/api/auth/login')
         .send({
           email: userData.email,
           password: userData.password,
-          rememberMe: true, // Important: request refresh token
+          rememberMe: true,
         })
         .expect(200);
 
-      // Extract refreshToken cookie from login response
       const setCookieHeader = loginResponse.headers['set-cookie'];
       expect(setCookieHeader).toBeDefined();
 
@@ -38,7 +34,6 @@ describe('Auth - Refresh Token (e2e)', () => {
 
       expect(refreshTokenCookie).toBeDefined();
 
-      // Refresh tokens using cookie
       const refreshResponse = await request(server())
         .post('/api/auth/refresh')
         .set('Cookie', refreshTokenCookie!)
@@ -55,7 +50,6 @@ describe('Auth - Refresh Token (e2e)', () => {
         },
       });
 
-      // Verify we got a valid access token
       expect(refreshResponse.body.user.accessToken).toBeDefined();
       expect(refreshResponse.body.user.accessToken.length).toBeGreaterThan(0);
     });
@@ -71,11 +65,5 @@ describe('Auth - Refresh Token (e2e)', () => {
         message: 'Invalid refresh token',
       });
     });
-
-    // TODO: Add test for expired refresh token
-    // This requires mocking JWT expiration or using very short-lived tokens
-    // it('should return 401 with expired refresh token', async () => {
-    //   // Implementation needed: mock time or use short-lived token
-    // });
   });
 });
