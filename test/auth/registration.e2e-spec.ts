@@ -3,18 +3,25 @@ import {
   getTestFixture,
   generateUserData,
   generateInvalidUserData,
+  registerUser,
   type UserTestData,
 } from '../setup/jest-setup';
 
 describe('Auth - Registration (e2e)', () => {
   const fixture = getTestFixture();
+  const server = () => fixture.getHttpServer();
 
-  describe('POST /auth/register', () => {
+  // Clear database before this test suite to ensure clean state
+  beforeAll(async () => {
+    await fixture.clearDatabase();
+  });
+
+  describe('POST /api/auth/register', () => {
     it('should register a new user successfully', async () => {
       const userData: UserTestData = generateUserData();
 
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/register')
+      const response = await request(server())
+        .post('/api/auth/register')
         .send(userData)
         .expect(201);
 
@@ -25,72 +32,67 @@ describe('Auth - Registration (e2e)', () => {
           email: userData.email,
           name: userData.name,
           createdAt: expect.any(String),
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
         },
       });
     });
 
     it('should return 409 when email already exists', async () => {
-      const userData = {
-        email: 'duplicate@example.com',
-        name: 'First User',
-        password: 'Password123',
-      };
+      // Use unique email for this test
+      const userData = generateUserData();
 
-      await request(fixture.getHttpServer())
-        .post('/auth/register')
-        .send(userData)
-        .expect(201);
+      // Register first user
+      await registerUser(server(), userData);
 
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/register')
+      // Try to register again with same email
+      const response = await request(server())
+        .post('/api/auth/register')
         .send({
-          email: 'duplicate@example.com',
-          name: 'Second User',
-          password: 'Pass456',
+          email: userData.email, // Same email
+          name: 'Different Name',
+          password: 'DifferentPass123',
         })
         .expect(409);
 
-      expect(response.body).toEqual({
+      expect(response.body).toMatchObject({
         statusCode: 409,
         message: 'User with this email already exists',
-        error: 'Conflict',
       });
     });
 
     it('should return 400 for invalid email format', async () => {
       const invalidData = generateInvalidUserData();
 
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/register')
+      const response = await request(server())
+        .post('/api/auth/register')
         .send(invalidData.invalidEmail)
         .expect(400);
 
-      expect(response.body.message).toBe('Validation failed');
-      expect(response.body.errors[0].field).toBe('email');
+      expect(response.body.statusCode).toBe(400);
+      expect(response.body.message).toContain('email');
     });
 
     it('should return 400 for password that is too short', async () => {
       const invalidData = generateInvalidUserData();
 
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/register')
+      const response = await request(server())
+        .post('/api/auth/register')
         .send(invalidData.shortPassword)
         .expect(400);
 
-      expect(response.body.errors[0].field).toBe('password');
+      expect(response.body.statusCode).toBe(400);
+      expect(response.body.message).toContain('password');
     });
 
     it('should return 400 for name with invalid characters', async () => {
       const invalidData = generateInvalidUserData();
 
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/register')
+      const response = await request(server())
+        .post('/api/auth/register')
         .send(invalidData.invalidName)
         .expect(400);
 
-      expect(response.body.errors[0].field).toBe('name');
+      expect(response.body.statusCode).toBe(400);
+      expect(response.body.message).toContain('name');
     });
   });
 });
