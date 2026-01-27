@@ -113,6 +113,10 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user.id, user.email);
 
+    const expiresIn = rememberMe
+      ? TOKEN_CONSTANTS.REFRESH_TOKEN_DB_EXPIRATION
+      : TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION;
+
     if (existingToken) {
       this.logger.debug(
         `Updating existing token for device ${deviceFingerprint.substring(0, 8)}...`,
@@ -121,7 +125,7 @@ export class AuthService {
         existingToken.id,
         tokens.accessToken,
         rememberMe ? tokens.refreshToken : null,
-        TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+        expiresIn,
       );
     } else {
       const activeSessionsCount =
@@ -141,7 +145,7 @@ export class AuthService {
         user.id,
         tokens.accessToken,
         rememberMe ? tokens.refreshToken : null,
-        TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+        expiresIn,
         deviceInfo || 'Unknown',
         ipAddress || 'Unknown',
         deviceFingerprint,
@@ -199,11 +203,15 @@ export class AuthService {
 
     const hadRefreshToken = !!tokenEntity.refreshToken;
 
+    const expiresIn = hadRefreshToken
+      ? TOKEN_CONSTANTS.REFRESH_TOKEN_DB_EXPIRATION
+      : TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION;
+
     await this.tokenService.updateToken(
       tokenEntity.id,
       tokens.accessToken,
       hadRefreshToken ? tokens.refreshToken : null,
-      TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION,
+      expiresIn,
     );
 
     await this.tokenService.updateLastUsed(tokenEntity.id);
