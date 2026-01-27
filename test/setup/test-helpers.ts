@@ -1,10 +1,6 @@
 import request from 'supertest';
 import { Server } from 'http';
 
-// ============================================================================
-// Types
-// ============================================================================
-
 export interface UserTestData {
   email: string;
   name: string;
@@ -42,10 +38,6 @@ export interface LoginCredentials {
   email: string;
   password: string;
 }
-
-// ============================================================================
-// Data Generators
-// ============================================================================
 
 /**
  * Generate unique user data for tests
@@ -88,10 +80,6 @@ export function generateInvalidUserData(): InvalidUserData {
     },
   };
 }
-
-// ============================================================================
-// API Helpers
-// ============================================================================
 
 /**
  * Register a new user
@@ -138,10 +126,8 @@ export async function createAuthenticatedUser(
 ): Promise<{ userData: UserTestData; authResponse: AuthResponse }> {
   const user = generateUserData(userData);
 
-  // Register user
   await registerUser(server, user);
 
-  // Login to get tokens
   const authResponse = await loginUser(server, {
     email: user.email,
     password: user.password,

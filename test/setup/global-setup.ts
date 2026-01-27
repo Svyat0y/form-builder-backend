@@ -10,7 +10,6 @@ export default async function globalSetup(): Promise<void> {
   const fixture = new E2ETestFixture();
   await fixture.setup();
 
-  // Store fixture in global object - accessible in all test processes
   (global as any).__E2E_FIXTURE__ = fixture;
 
   console.log('✅ GLOBAL SETUP: Completed');

@@ -34,10 +34,8 @@ export class E2ETestFixture {
     this.app = this.moduleFixture.createNestApplication();
     this.dataSource = this.moduleFixture.get<DataSource>(DataSource);
 
-    // Apply middleware (same as in main.ts)
     this.app.use(cookieParser());
 
-    // Apply global filters and pipes (same as in main.ts)
     this.app.useGlobalFilters(new UnifiedExceptionFilter());
     this.app.useGlobalPipes(validationPipeConfig);
 
@@ -53,7 +51,6 @@ export class E2ETestFixture {
   async clearDatabase(): Promise<void> {
     const entities = this.dataSource.entityMetadatas;
 
-    // Use TRUNCATE CASCADE to handle foreign key constraints
     for (const entity of entities) {
       const tableName = entity.tableName;
       try {
@@ -61,7 +58,6 @@ export class E2ETestFixture {
           `TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`,
         );
       } catch (error) {
-        // Ignore errors for tables that don't exist or other edge cases
         console.warn(
           `Warning: Could not truncate ${tableName}:`,
           error.message,
@@ -70,22 +66,6 @@ export class E2ETestFixture {
     }
 
     console.log('🧹 Database cleared');
-  }
-
-  /**
-   * Cleanup and close application
-   * Called once in global teardown
-   */
-  async teardown(): Promise<void> {
-    console.log('🛑 Cleaning up test environment...');
-
-    await this.app.close();
-
-    if (this.dataSource.isInitialized) {
-      await this.dataSource.destroy();
-    }
-
-    console.log('✅ Test environment cleaned up');
   }
 
   /**

@@ -25,12 +25,10 @@ import {
  * - Can selectively clear when needed
  */
 
-// Export fixture accessor
 export function getTestFixture() {
   return getGlobalFixture();
 }
 
-// Export test helpers
 export {
   generateUserData,
   generateInvalidUserData,

@@ -5,18 +5,15 @@ describe('Auth - Logout (e2e)', () => {
   const fixture = getTestFixture();
   const server = () => fixture.getHttpServer();
 
-  // Clear database before this test suite
   beforeAll(async () => {
     await fixture.clearDatabase();
   });
 
   describe('POST /api/auth/logout', () => {
     it('should logout successfully with valid token', async () => {
-      // Create authenticated user with tokens
       const { authResponse } = await createAuthenticatedUser(server());
       const accessToken = authResponse.user.accessToken;
 
-      // Logout
       const logoutResponse = await request(server())
         .post('/api/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
