@@ -1,22 +1,24 @@
 import request from 'supertest';
-import { getTestFixture, generateUserData } from '../setup/jest-setup';
+import { getTestFixture, createAuthenticatedUser } from '../setup/jest-setup';
 
 describe('Auth - Logout (e2e)', () => {
   const fixture = getTestFixture();
+  const server = () => fixture.getHttpServer();
 
-  describe('POST /auth/logout', () => {
+  // Clear database before this test suite
+  beforeAll(async () => {
+    await fixture.clearDatabase();
+  });
+
+  describe('POST /api/auth/logout', () => {
     it('should logout successfully with valid token', async () => {
-      const userData = generateUserData();
+      // Create authenticated user with tokens
+      const { authResponse } = await createAuthenticatedUser(server());
+      const accessToken = authResponse.user.accessToken;
 
-      const registerResponse = await request(fixture.getHttpServer())
-        .post('/auth/register')
-        .send(userData)
-        .expect(201);
-
-      const accessToken = registerResponse.body.user.accessToken;
-
-      const logoutResponse = await request(fixture.getHttpServer())
-        .post('/auth/logout')
+      // Logout
+      const logoutResponse = await request(server())
+        .post('/api/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
@@ -26,29 +28,28 @@ describe('Auth - Logout (e2e)', () => {
     });
 
     it('should return 401 without authorization header', async () => {
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/logout')
+      const response = await request(server())
+        .post('/api/auth/logout')
         .expect(401);
 
-      expect(response.body).toEqual({
+      expect(response.body).toMatchObject({
         statusCode: 401,
         message: 'Unauthorized',
       });
     });
 
     it('should return 401 with invalid token', async () => {
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/logout')
+      const response = await request(server())
+        .post('/api/auth/logout')
         .set('Authorization', 'Bearer invalid-token-123')
         .expect(401);
 
       expect(response.body.statusCode).toBe(401);
     });
 
-    // Optional: Test with malformed token (no "Bearer ")
     it('should return 401 with malformed authorization header', async () => {
-      const response = await request(fixture.getHttpServer())
-        .post('/auth/logout')
+      const response = await request(server())
+        .post('/api/auth/logout')
         .set('Authorization', 'invalid-token-without-bearer')
         .expect(401);
 

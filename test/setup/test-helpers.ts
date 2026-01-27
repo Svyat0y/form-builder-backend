@@ -1,3 +1,10 @@
+import request from 'supertest';
+import { Server } from 'http';
+
+// ============================================================================
+// Types
+// ============================================================================
+
 export interface UserTestData {
   email: string;
   name: string;
@@ -10,6 +17,40 @@ export interface InvalidUserData {
   invalidName: UserTestData;
 }
 
+export interface RegisterResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    createdAt: string;
+  };
+}
+
+export interface AuthResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    createdAt: string;
+    accessToken: string;
+  };
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+// ============================================================================
+// Data Generators
+// ============================================================================
+
+/**
+ * Generate unique user data for tests
+ * Uses timestamp + random string to ensure uniqueness
+ */
 export function generateUserData(
   overrides: Partial<UserTestData> = {},
 ): UserTestData {
@@ -23,6 +64,9 @@ export function generateUserData(
   };
 }
 
+/**
+ * Generate invalid user data for validation tests
+ */
 export function generateInvalidUserData(): InvalidUserData {
   return {
     invalidEmail: {
@@ -42,5 +86,69 @@ export function generateInvalidUserData(): InvalidUserData {
       name: 'Test123',
       password: 'Password123',
     },
+  };
+}
+
+// ============================================================================
+// API Helpers
+// ============================================================================
+
+/**
+ * Register a new user
+ * Note: Registration does NOT return tokens, only user info
+ * @returns Register response with user info (no tokens)
+ */
+export async function registerUser(
+  server: Server,
+  userData?: Partial<UserTestData>,
+): Promise<RegisterResponse> {
+  const user = generateUserData(userData);
+
+  const response = await request(server)
+    .post('/api/auth/register')
+    .send(user)
+    .expect(201);
+
+  return response.body as RegisterResponse;
+}
+
+/**
+ * Login existing user
+ * @returns Auth response with tokens
+ */
+export async function loginUser(
+  server: Server,
+  credentials: LoginCredentials,
+): Promise<AuthResponse> {
+  const response = await request(server)
+    .post('/api/auth/login')
+    .send(credentials)
+    .expect(200);
+
+  return response.body as AuthResponse;
+}
+
+/**
+ * Register and login user in one step
+ * Useful for tests that need authenticated user with tokens
+ */
+export async function createAuthenticatedUser(
+  server: Server,
+  userData?: Partial<UserTestData>,
+): Promise<{ userData: UserTestData; authResponse: AuthResponse }> {
+  const user = generateUserData(userData);
+
+  // Register user
+  await registerUser(server, user);
+
+  // Login to get tokens
+  const authResponse = await loginUser(server, {
+    email: user.email,
+    password: user.password,
+  });
+
+  return {
+    userData: user,
+    authResponse,
   };
 }
