@@ -28,42 +28,24 @@ export class TokenService {
     });
   }
 
-  async getActiveSessionsCount(userId: string): Promise<number> {
-    return this.tokenRepository.count({
-      where: {
-        userId,
-        revoked: false,
-        expiresAt: MoreThan(new Date()),
-      },
-    });
-  }
-
-  async revokeOldestSessions(userId: string, keepCount: number): Promise<void> {
-    const activeTokens = await this.tokenRepository.find({
-      where: {
-        userId,
-        revoked: false,
-        expiresAt: MoreThan(new Date()),
-      },
-      order: {
-        lastUsed: 'ASC',
-      },
+  async deleteOldRevokedTokens(
+    userId: string,
+    keepLast: number = 10,
+  ): Promise<void> {
+    const allRevoked = await this.tokenRepository.find({
+      where: { userId, revoked: true },
+      order: { createdAt: 'DESC' },
     });
 
-    if (activeTokens.length > keepCount) {
-      const tokensToRevoke = activeTokens.slice(
-        0,
-        activeTokens.length - keepCount,
-      );
-      const idsToRevoke = tokensToRevoke.map((token) => token.id);
+    if (allRevoked.length > keepLast) {
+      const toDelete = allRevoked.slice(keepLast);
+      const ids = toDelete.map((t) => t.id);
 
-      await this.tokenRepository.update(
-        { id: idsToRevoke as any },
-        { revoked: true },
-      );
+      await this.tokenRepository.delete(ids);
 
-      this.logger.log(
-        `Revoked ${tokensToRevoke.length} oldest sessions for user ${userId}`,
+      this.logger.debug(
+        `Deleted ${toDelete.length} old revoked tokens. ` +
+          `Kept ${keepLast} most recent ones.`,
       );
     }
   }
@@ -175,17 +157,6 @@ export class TokenService {
 
   async revokeTokenByRefresh(refreshToken: string): Promise<void> {
     await this.tokenRepository.update({ refreshToken }, { revoked: true });
-  }
-
-  async cleanupExpiredTokens(): Promise<void> {
-    await this.tokenRepository
-      .createQueryBuilder()
-      .delete()
-      .where('expiresAt < :now OR revoked = :revoked', {
-        now: new Date(),
-        revoked: true,
-      })
-      .execute();
   }
 
   async getUserActiveSessions(userId: string): Promise<Token[]> {

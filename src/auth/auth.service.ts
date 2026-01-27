@@ -128,15 +128,10 @@ export class AuthService {
         expiresIn,
       );
     } else {
-      const activeSessionsCount =
-        await this.tokenService.getActiveSessionsCount(user.id);
-
-      if (activeSessionsCount >= TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS) {
-        await this.tokenService.revokeOldestSessions(
-          user.id,
-          TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS - 1,
-        );
-      }
+      await this.tokenService.deleteOldRevokedTokens(
+        user.id,
+        TOKEN_CONSTANTS.MAX_REVOKED_SESSIONS,
+      );
 
       this.logger.debug(
         `Creating new token for device ${deviceFingerprint.substring(0, 8)}...`,
