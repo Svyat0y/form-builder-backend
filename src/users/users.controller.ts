@@ -4,6 +4,7 @@ import {
   UseGuards,
   UsePipes,
   Post,
+  Patch,
   Body,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,12 +15,16 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { validationPipeConfig } from '../config/validation.config';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { UsersService } from './users.service';
 import { DeleteUserDto } from './dto/delete-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UserId } from '../auth/decorators/user-id.decorator';
 import { TokenService } from '../tokens/token.service';
+import { UserRole } from './user.entity';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -47,12 +52,14 @@ export class UsersController {
             email: 'user1@example.com',
             name: 'John Doe',
             createdAt: '2024-01-15T10:30:00Z',
+            role: 'USER',
           },
           {
             id: 2,
             email: 'user2@example.com',
             name: 'Jane Smith',
             createdAt: '2024-01-15T11:00:00Z',
+            role: 'USER',
           },
         ],
       },
@@ -69,10 +76,13 @@ export class UsersController {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt.toISOString(),
+      role: (user as any).role,
     }));
   }
 
   @Post('delete')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Delete user by ID' })
   @ApiResponse({
     status: 200,
@@ -86,9 +96,66 @@ export class UsersController {
   @ApiResponse({ status: 400, description: 'Invalid user ID format' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async deleteUser(@Body() deleteUserDto: DeleteUserDto) {
-    await this.usersService.deleteUser(deleteUserDto.userId);
+  async deleteUser(
+    @Body() deleteUserDto: DeleteUserDto,
+    @UserId() requestingUserId: string,
+  ) {
+    await this.usersService.deleteUser(deleteUserDto.userId, requestingUserId);
     return { message: 'User deleted successfully' };
+  }
+
+  @Patch('update-role')
+  @Roles(UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary: 'Update user role (SUPER_ADMIN only, cannot change own role)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User role updated successfully',
+    schema: {
+      example: {
+        message: 'User role updated successfully',
+        user: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'user@example.com',
+          name: 'John Doe',
+          role: 'ADMIN',
+          createdAt: '2024-01-15T10:30:00Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot change own role or invalid input',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - only SUPER_ADMIN can change roles',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async updateUserRole(
+    @Body() updateRoleDto: UpdateUserRoleDto,
+    @UserId() requestingUserId: string,
+  ) {
+    const updatedUser = await this.usersService.updateUserRole(
+      updateRoleDto.userId,
+      requestingUserId,
+      updateRoleDto.role,
+    );
+
+    return {
+      message: 'User role updated successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: (updatedUser as any).role,
+        createdAt: updatedUser.createdAt.toISOString(),
+      },
+    };
   }
 
   @Get('me')
@@ -104,7 +171,8 @@ export class UsersController {
       id: user.id,
       email: user.email,
       name: user.name,
-      createdAt: user.createdAt,
+      createdAt: user.createdAt.toISOString(),
+      role: (user as any).role,
     };
   }
 
