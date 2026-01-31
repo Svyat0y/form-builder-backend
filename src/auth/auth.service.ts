@@ -76,7 +76,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
-        createdAt: user.createdAt,
+        createdAt: user.createdAt.toISOString(),
+        role: (user as any).role,
       },
     };
   }
@@ -166,7 +167,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
-        createdAt: user.createdAt,
+        createdAt: user.createdAt.toISOString(),
+        role: (user as any).role,
         accessToken: tokens.accessToken,
       },
     };
@@ -222,7 +224,8 @@ export class AuthService {
         id: tokenEntity.user.id,
         email: tokenEntity.user.email,
         name: tokenEntity.user.name,
-        createdAt: tokenEntity.user.createdAt,
+        createdAt: tokenEntity.user.createdAt.toISOString(),
+        role: (tokenEntity.user as any).role,
         accessToken: tokens.accessToken,
       },
     };

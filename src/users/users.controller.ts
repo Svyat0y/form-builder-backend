@@ -14,12 +14,15 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { validationPipeConfig } from '../config/validation.config';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { UsersService } from './users.service';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { UserId } from '../auth/decorators/user-id.decorator';
 import { TokenService } from '../tokens/token.service';
+import { UserRole } from './user.entity';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
@@ -47,12 +50,14 @@ export class UsersController {
             email: 'user1@example.com',
             name: 'John Doe',
             createdAt: '2024-01-15T10:30:00Z',
+            role: 'USER',
           },
           {
             id: 2,
             email: 'user2@example.com',
             name: 'Jane Smith',
             createdAt: '2024-01-15T11:00:00Z',
+            role: 'USER',
           },
         ],
       },
@@ -69,10 +74,13 @@ export class UsersController {
       email: user.email,
       name: user.name,
       createdAt: user.createdAt.toISOString(),
+      role: (user as any).role,
     }));
   }
 
   @Post('delete')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Delete user by ID' })
   @ApiResponse({
     status: 200,
@@ -104,7 +112,8 @@ export class UsersController {
       id: user.id,
       email: user.email,
       name: user.name,
-      createdAt: user.createdAt,
+      createdAt: user.createdAt.toISOString(),
+      role: (user as any).role,
     };
   }
 
