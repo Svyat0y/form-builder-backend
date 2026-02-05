@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,7 @@ import {
 import type { Response, Request } from 'express';
 import { ApiBearerAuth, ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { validationPipeConfig } from '../config/validation.config';
@@ -104,5 +106,109 @@ export class AuthController {
     await this.authService.logout(userId, accessToken, res);
 
     return { message: 'Logged out successfully' };
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiExcludeEndpoint()
+  async googleAuth() {
+    // Passport redirects to Google OAuth
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiExcludeEndpoint()
+  async googleAuthCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const user = req.user as unknown as {
+      id: string;
+      email: string;
+      name: string;
+      createdAt: Date;
+      role: string;
+    };
+    const deviceInfo = (req.headers['user-agent'] as string) || 'Unknown';
+    const ipAddress =
+      (req.ip as string) ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      'Unknown';
+
+    const tokens = await this.authService.generateTokens(user.id, user.email);
+
+    await this.authService.saveOAuthTokens(
+      user.id,
+      tokens.accessToken,
+      tokens.refreshToken,
+      deviceInfo,
+      ipAddress,
+    );
+
+    this.authService.setRefreshTokenCookie(res, tokens.refreshToken);
+
+    const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&user=${encodeURIComponent(
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt.toISOString(),
+        role: user.role,
+      }),
+    )}`;
+
+    res.redirect(frontendUrl);
+  }
+
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  @ApiExcludeEndpoint()
+  async facebookAuth() {
+    // Passport redirects to Facebook OAuth
+  }
+
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  @ApiExcludeEndpoint()
+  async facebookAuthCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const user = req.user as unknown as {
+      id: string;
+      email: string;
+      name: string;
+      createdAt: Date;
+      role: string;
+    };
+    const deviceInfo = (req.headers['user-agent'] as string) || 'Unknown';
+    const ipAddress =
+      (req.ip as string) ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      'Unknown';
+
+    const tokens = await this.authService.generateTokens(user.id, user.email);
+
+    await this.authService.saveOAuthTokens(
+      user.id,
+      tokens.accessToken,
+      tokens.refreshToken,
+      deviceInfo,
+      ipAddress,
+    );
+
+    this.authService.setRefreshTokenCookie(res, tokens.refreshToken);
+
+    const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&user=${encodeURIComponent(
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt.toISOString(),
+        role: user.role,
+      }),
+    )}`;
+
+    res.redirect(frontendUrl);
   }
 }

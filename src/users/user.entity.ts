@@ -22,8 +22,14 @@ export class User {
   @Column()
   name: string;
 
-  @Column()
-  password: string;
+  @Column({ nullable: true })
+  password?: string;
+
+  @Column({ nullable: true })
+  googleId?: string;
+
+  @Column({ nullable: true })
+  facebookId?: string;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -33,7 +33,7 @@ export class UsersService {
   async createUser(
     email: string,
     name: string,
-    password: string,
+    password?: string,
   ): Promise<User> {
     const user = new User();
     user.email = email;
@@ -50,6 +50,23 @@ export class UsersService {
 
   async findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { googleId } });
+  }
+
+  async findByFacebookId(facebookId: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { facebookId } });
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    await this.usersRepository.update(id, updates);
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
   }
 
   async deleteUser(id: string, requestingUserId: string): Promise<void> {
