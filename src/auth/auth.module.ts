@@ -7,6 +7,8 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { TokensModule } from '../tokens/tokens.module';
 import { JwtStrategy } from './jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';
 import { User } from '../users/user.entity';
 
 @Module({
@@ -27,7 +29,7 @@ import { User } from '../users/user.entity';
 
     ConfigModule,
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, FacebookStrategy],
   controllers: [AuthController],
   exports: [JwtModule, AuthService],
 })

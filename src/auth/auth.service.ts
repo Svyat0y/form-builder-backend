@@ -22,7 +22,7 @@ export class AuthService {
     private tokenService: TokenService,
   ) {}
 
-  private async generateTokens(userId: string, email: string) {
+  public async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         { userId, email },
@@ -37,7 +37,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private setRefreshTokenCookie(res: Response, refreshToken: string) {
+  public setRefreshTokenCookie(res: Response, refreshToken: string) {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -47,7 +47,7 @@ export class AuthService {
     });
   }
 
-  private clearRefreshTokenCookie(res: Response) {
+  public clearRefreshTokenCookie(res: Response) {
     res.clearCookie('refreshToken', {
       path: '/',
     });
@@ -96,7 +96,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password!);
     if (!isPasswordValid) {
       this.logger.warn(`LOGIN_FAILED: Invalid password - ${email}`);
       throw new UnauthorizedException('Invalid email or password');
@@ -251,5 +251,48 @@ export class AuthService {
     }
 
     this.logger.debug(`User logged out: ${userId}`);
+  }
+
+  async saveOAuthTokens(
+    userId: string,
+    accessToken: string,
+    refreshToken: string,
+    deviceInfo: string,
+    ipAddress: string,
+  ): Promise<string> {
+    const deviceFingerprint = generateDeviceFingerprint(deviceInfo, ipAddress);
+    const existingToken = await this.tokenService.findTokenByDeviceFingerprint(
+      userId,
+      deviceFingerprint,
+    );
+
+    if (existingToken) {
+      await this.tokenService.updateToken(
+        existingToken.id,
+        accessToken,
+        refreshToken,
+        TOKEN_CONSTANTS.REFRESH_TOKEN_DB_EXPIRATION,
+      );
+    } else {
+      await this.tokenService.deleteOldRevokedTokens(
+        userId,
+        TOKEN_CONSTANTS.MAX_REVOKED_SESSIONS,
+      );
+      await this.tokenService.createToken(
+        userId,
+        accessToken,
+        refreshToken,
+        TOKEN_CONSTANTS.REFRESH_TOKEN_DB_EXPIRATION,
+        deviceInfo,
+        ipAddress,
+        deviceFingerprint,
+      );
+    }
+
+    this.logger.log(
+      `OAUTH_LOGIN: User ${userId} logged in via OAuth (Device: ${deviceFingerprint.substring(0, 8)}...)`,
+    );
+
+    return deviceFingerprint;
   }
 }
