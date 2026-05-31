@@ -20,6 +20,7 @@ export class TokenService {
         userId,
         deviceFingerprint,
         revoked: false,
+        expiresAt: MoreThan(new Date()),
       },
       relations: ['user'],
       order: {
@@ -74,6 +75,28 @@ export class TokenService {
       this.logger.debug(
         `Deleted ${toDelete.length} old active tokens. ` +
         `Kept ${keepLast} most recent active sessions.`,
+      );
+    }
+  }
+
+  async deleteOldestTokens(
+    userId: string,
+    keepLast: number = 10,
+  ): Promise<void> {
+    const allTokens = await this.tokenRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (allTokens.length > keepLast) {
+      const toDelete = allTokens.slice(keepLast);
+      const ids = toDelete.map((t) => t.id);
+
+      await this.tokenRepository.delete(ids);
+
+      this.logger.debug(
+        `Deleted ${toDelete.length} oldest tokens. ` +
+        `Kept ${keepLast} newest tokens for user ${userId}.`,
       );
     }
   }

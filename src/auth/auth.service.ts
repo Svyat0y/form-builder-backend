@@ -146,11 +146,17 @@ export class AuthService {
         ipAddress || 'Unknown',
         deviceFingerprint,
       );
-      await this.tokenService.deleteOldestActiveTokens(
-        user.id,
-        TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
-      );
     }
+
+    await this.tokenService.deleteOldestActiveTokens(
+      user.id,
+      TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
+    );
+
+    await this.tokenService.deleteOldestTokens(
+      user.id,
+      TOKEN_CONSTANTS.MAX_TOTAL_TOKENS,
+    );
 
     if (rememberMe) {
       if (res && tokens.refreshToken) {
@@ -291,11 +297,17 @@ export class AuthService {
         ipAddress,
         deviceFingerprint,
       );
-      await this.tokenService.deleteOldestActiveTokens(
-        userId,
-        TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
-      );
     }
+
+    await this.tokenService.deleteOldestActiveTokens(
+      userId,
+      TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
+    );
+
+    await this.tokenService.deleteOldestTokens(
+      userId,
+      TOKEN_CONSTANTS.MAX_TOTAL_TOKENS,
+    );
 
     this.logger.log(
       `OAUTH_LOGIN: User ${userId} logged in via OAuth (Device: ${deviceFingerprint.substring(0, 8)}...)`,
