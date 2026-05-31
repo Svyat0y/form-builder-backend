@@ -9,7 +9,7 @@ export class TokenService {
   constructor(
     @InjectRepository(Token)
     private tokenRepository: Repository<Token>,
-  ) {}
+  ) { }
 
   async findTokenByDeviceFingerprint(
     userId: string,
@@ -45,7 +45,35 @@ export class TokenService {
 
       this.logger.debug(
         `Deleted ${toDelete.length} old revoked tokens. ` +
-          `Kept ${keepLast} most recent ones.`,
+        `Kept ${keepLast} most recent ones.`,
+      );
+    }
+  }
+
+  async deleteOldestActiveTokens(
+    userId: string,
+    keepLast: number = 10,
+  ): Promise<void> {
+    const activeTokens = await this.tokenRepository.find({
+      where: {
+        userId,
+        revoked: false,
+        expiresAt: MoreThan(new Date()),
+      },
+      order: {
+        lastUsed: 'ASC',
+      },
+    });
+
+    if (activeTokens.length > keepLast) {
+      const toDelete = activeTokens.slice(0, activeTokens.length - keepLast);
+      const ids = toDelete.map((t) => t.id);
+
+      await this.tokenRepository.delete(ids);
+
+      this.logger.debug(
+        `Deleted ${toDelete.length} old active tokens. ` +
+        `Kept ${keepLast} most recent active sessions.`,
       );
     }
   }
