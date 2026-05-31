@@ -20,7 +20,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private tokenService: TokenService,
-  ) {}
+  ) { }
 
   public async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
@@ -145,6 +145,10 @@ export class AuthService {
         deviceInfo || 'Unknown',
         ipAddress || 'Unknown',
         deviceFingerprint,
+      );
+      await this.tokenService.deleteOldestActiveTokens(
+        user.id,
+        TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
       );
     }
 
@@ -286,6 +290,10 @@ export class AuthService {
         deviceInfo,
         ipAddress,
         deviceFingerprint,
+      );
+      await this.tokenService.deleteOldestActiveTokens(
+        userId,
+        TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
       );
     }
 
