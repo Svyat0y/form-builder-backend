@@ -15,6 +15,9 @@ lerna-debug.log*
 # OS
 .DS_Store
 
+# Docs (local AI context, not versioned)
+/docs
+
 # Tests
 /coverage
 /.nyc_output
