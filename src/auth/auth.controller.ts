@@ -20,6 +20,8 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { validationPipeConfig } from '../config/validation.config';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserId } from './decorators/user-id.decorator';
 
 @ApiTags('Auth')
@@ -106,6 +108,24 @@ export class AuthController {
     await this.authService.logout(userId, accessToken, res);
 
     return { message: 'Logged out successfully' };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email);
+    return {
+      message:
+        'If this email is registered, you will receive a reset link shortly',
+    };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.password);
+    return { message: 'Password has been reset successfully' };
   }
 
   @Get('google')
