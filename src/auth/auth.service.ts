@@ -6,11 +6,14 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { TokenService } from '../tokens/token.service';
 import { TOKEN_CONSTANTS } from '../tokens/token.constants';
 import { generateDeviceFingerprint } from '../tokens/device-fingerprint.util';
+import { MailService } from '../mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +23,9 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private tokenService: TokenService,
-  ) { }
+    private mailService: MailService,
+    private configService: ConfigService,
+  ) {}
 
   public async generateTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
@@ -261,6 +266,59 @@ export class AuthService {
     }
 
     this.logger.debug(`User logged out: ${userId}`);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Don't reveal whether email exists
+      this.logger.debug(`FORGOT_PASSWORD: email not found - ${email}`);
+      return;
+    }
+
+    const plainToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(plainToken)
+      .digest('hex');
+
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.usersService.setResetToken(user.id, hashedToken, expiry);
+
+    const resetPasswordUrl =
+      this.configService.get<string>('RESET_PASSWORD_URL');
+    const resetLink = `${resetPasswordUrl}?token=${plainToken}`;
+
+    try {
+      await this.mailService.sendPasswordResetEmail(email, resetLink);
+      this.logger.log(`FORGOT_PASSWORD: reset email sent to ${email}`);
+    } catch (err) {
+      this.logger.error(
+        `FORGOT_PASSWORD: failed to send email to ${email} — ${err.message}`,
+      );
+      // Don't expose mail errors to client; token is saved, user can retry
+    }
+  }
+
+  async resetPassword(plainToken: string, newPassword: string): Promise<void> {
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(plainToken)
+      .digest('hex');
+
+    const user = await this.usersService.findByResetToken(hashedToken);
+
+    if (!user) {
+      this.logger.warn('RESET_PASSWORD: invalid or expired token');
+      throw new UnauthorizedException('Reset token is invalid or has expired');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await this.usersService.updatePassword(user.id, hashedPassword);
+
+    this.logger.log(`RESET_PASSWORD: password updated for user ${user.id}`);
   }
 
   async saveOAuthTokens(

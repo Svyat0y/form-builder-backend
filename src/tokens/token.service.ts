@@ -9,7 +9,7 @@ export class TokenService {
   constructor(
     @InjectRepository(Token)
     private tokenRepository: Repository<Token>,
-  ) { }
+  ) {}
 
   async findTokenByDeviceFingerprint(
     userId: string,
@@ -46,7 +46,7 @@ export class TokenService {
 
       this.logger.debug(
         `Deleted ${toDelete.length} old revoked tokens. ` +
-        `Kept ${keepLast} most recent ones.`,
+          `Kept ${keepLast} most recent ones.`,
       );
     }
   }
@@ -74,7 +74,7 @@ export class TokenService {
 
       this.logger.debug(
         `Deleted ${toDelete.length} old active tokens. ` +
-        `Kept ${keepLast} most recent active sessions.`,
+          `Kept ${keepLast} most recent active sessions.`,
       );
     }
   }
@@ -96,7 +96,7 @@ export class TokenService {
 
       this.logger.debug(
         `Deleted ${toDelete.length} oldest tokens. ` +
-        `Kept ${keepLast} newest tokens for user ${userId}.`,
+          `Kept ${keepLast} newest tokens for user ${userId}.`,
       );
     }
   }
