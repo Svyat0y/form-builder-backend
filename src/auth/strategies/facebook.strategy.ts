@@ -29,8 +29,9 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     done: (error: any, user?: any) => void,
   ) {
     try {
-      const { id, displayName, emails } = profile;
+      const { id, displayName, emails, photos } = profile;
       const email = emails?.[0]?.value;
+      const avatar = photos?.[0]?.value ?? null;
 
       if (!email) {
         this.logger.warn('Facebook profile without email');
@@ -43,9 +44,18 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         user = await this.usersService.findByEmail(email);
 
         if (user && !user.facebookId) {
+          await this.usersService.updateUser(user.id, {
+            facebookId: id,
+            avatar,
+          });
           user.facebookId = id;
-          await this.usersService.updateUser(user.id, { facebookId: id });
+          user.avatar = avatar;
           this.logger.log(`Facebook ID linked to existing user: ${email}`);
+        }
+      } else {
+        if (user.avatar !== avatar) {
+          await this.usersService.updateUser(user.id, { avatar });
+          user.avatar = avatar;
         }
       }
 
@@ -54,9 +64,10 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
           email,
           displayName || email.split('@')[0],
           '',
+          avatar,
         );
-        user.facebookId = id;
         await this.usersService.updateUser(user.id, { facebookId: id });
+        user.facebookId = id;
         this.logger.log(`New user created via Facebook: ${email}`);
       }
 

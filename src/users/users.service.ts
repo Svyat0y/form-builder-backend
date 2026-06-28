@@ -34,12 +34,14 @@ export class UsersService {
     email: string,
     name: string,
     password?: string,
+    avatar?: string | null,
   ): Promise<User> {
     const user = new User();
     user.email = email;
     user.name = name;
     user.password = password;
     user.role = UserRole.USER;
+    user.avatar = avatar ?? null;
 
     return this.usersRepository.save(user);
   }

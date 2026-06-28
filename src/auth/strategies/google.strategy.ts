@@ -27,8 +27,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ) {
     try {
-      const { id, displayName, emails } = profile;
+      const { id, displayName, emails, photos } = profile;
       const email = emails?.[0]?.value;
+      const avatar = photos?.[0]?.value ?? null;
 
       if (!email) {
         this.logger.warn('Google profile without email');
@@ -41,9 +42,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         user = await this.usersService.findByEmail(email);
 
         if (user && !user.googleId) {
+          await this.usersService.updateUser(user.id, { googleId: id, avatar });
           user.googleId = id;
-          await this.usersService.updateUser(user.id, { googleId: id });
+          user.avatar = avatar;
           this.logger.log(`Google ID linked to existing user: ${email}`);
+        }
+      } else {
+        if (user.avatar !== avatar) {
+          await this.usersService.updateUser(user.id, { avatar });
+          user.avatar = avatar;
         }
       }
 
@@ -52,9 +59,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
           email,
           displayName || email.split('@')[0],
           '',
+          avatar,
         );
-        user.googleId = id;
         await this.usersService.updateUser(user.id, { googleId: id });
+        user.googleId = id;
         this.logger.log(`New user created via Google: ${email}`);
       }
 
