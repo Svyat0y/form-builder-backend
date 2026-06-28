@@ -77,6 +77,7 @@ export class UsersController {
       name: user.name,
       createdAt: user.createdAt.toISOString(),
       role: (user as any).role,
+      avatar: user.avatar ?? null,
     }));
   }
 
@@ -154,6 +155,7 @@ export class UsersController {
         name: updatedUser.name,
         role: (updatedUser as any).role,
         createdAt: updatedUser.createdAt.toISOString(),
+        avatar: updatedUser.avatar ?? null,
       },
     };
   }
@@ -173,6 +175,7 @@ export class UsersController {
       name: user.name,
       createdAt: user.createdAt.toISOString(),
       role: (user as any).role,
+      avatar: user.avatar ?? null,
     };
   }
 

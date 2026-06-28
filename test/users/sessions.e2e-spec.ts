@@ -4,6 +4,7 @@ import {
   createAuthenticatedUser,
   generateUserData,
   loginUser,
+  type AuthResponse,
 } from '../setup/jest-setup';
 
 describe('Users - Sessions (e2e)', () => {
@@ -184,7 +185,7 @@ describe('Users - Sessions (e2e)', () => {
       await createAuthenticatedUser(server(), userData);
 
       // Login 10 times to create multiple sessions
-      const logins = [];
+      const logins: AuthResponse[] = [];
       for (let i = 0; i < 10; i++) {
         const login = await loginUser(server(), {
           email: userData.email,

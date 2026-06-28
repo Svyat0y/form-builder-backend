@@ -31,6 +31,9 @@ export class User {
   @Column({ nullable: true })
   facebookId?: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  avatar: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -83,6 +83,7 @@ export class AuthService {
         name: user.name,
         createdAt: user.createdAt.toISOString(),
         role: (user as any).role,
+        avatar: user.avatar ?? null,
       },
     };
   }
@@ -184,6 +185,7 @@ export class AuthService {
         name: user.name,
         createdAt: user.createdAt.toISOString(),
         role: (user as any).role,
+        avatar: user.avatar ?? null,
         accessToken: tokens.accessToken,
       },
     };
@@ -241,6 +243,7 @@ export class AuthService {
         name: tokenEntity.user.name,
         createdAt: tokenEntity.user.createdAt.toISOString(),
         role: (tokenEntity.user as any).role,
+        avatar: tokenEntity.user.avatar ?? null,
         accessToken: tokens.accessToken,
       },
     };
