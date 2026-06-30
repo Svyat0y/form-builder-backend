@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Not, Repository } from 'typeorm';
+import { LessThan, MoreThan, Not, Repository } from 'typeorm';
 import { Token } from './token.entity';
 
 @Injectable()
@@ -79,24 +79,17 @@ export class TokenService {
     }
   }
 
-  async deleteOldestTokens(
-    userId: string,
-    keepLast: number = 10,
-  ): Promise<void> {
-    const allTokens = await this.tokenRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
+  // Remove dead rows (past expiry) of any kind — they can never be used again
+  // and would otherwise accumulate forever.
+  async deleteExpiredTokens(userId: string): Promise<void> {
+    const result = await this.tokenRepository.delete({
+      userId,
+      expiresAt: LessThan(new Date()),
     });
 
-    if (allTokens.length > keepLast) {
-      const toDelete = allTokens.slice(keepLast);
-      const ids = toDelete.map((t) => t.id);
-
-      await this.tokenRepository.delete(ids);
-
+    if (result.affected) {
       this.logger.debug(
-        `Deleted ${toDelete.length} oldest tokens. ` +
-          `Kept ${keepLast} newest tokens for user ${userId}.`,
+        `Deleted ${result.affected} expired tokens for user ${userId}.`,
       );
     }
   }
