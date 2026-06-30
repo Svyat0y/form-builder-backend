@@ -9,6 +9,8 @@ import {
   Delete,
   Body,
   Req,
+  Param,
+  ParseUUIDPipe,
   UploadedFile,
   NotFoundException,
   BadRequestException,
@@ -31,8 +33,11 @@ import { UsersService } from './users.service';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { avatarUploadOptions, AVATAR_URL_PREFIX } from './avatar-upload.config';
 import { UserId } from '../auth/decorators/user-id.decorator';
+import { TokenId } from '../auth/decorators/token-id.decorator';
 import { TokenService } from '../tokens/token.service';
 import { UserRole } from './user.entity';
 
@@ -186,6 +191,7 @@ export class UsersController {
       createdAt: user.createdAt.toISOString(),
       role: (user as any).role,
       avatar: user.avatar ?? null,
+      hasPassword: !!user.password,
     };
   }
 
@@ -209,7 +215,46 @@ export class UsersController {
       createdAt: updatedUser.createdAt.toISOString(),
       role: (updatedUser as any).role,
       avatar: updatedUser.avatar ?? null,
+      hasPassword: !!updatedUser.password,
     };
+  }
+
+  @Patch('me/password')
+  @ApiOperation({ summary: "Change the current user's password" })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or account has no password (social login)',
+  })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect' })
+  async changePassword(
+    @UserId() userId: string,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    await this.usersService.changePassword(
+      userId,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+
+    return { message: 'Password changed successfully' };
+  }
+
+  @Post('me/password')
+  @ApiOperation({
+    summary: 'Set a password for the current user (social-login accounts)',
+  })
+  @ApiResponse({ status: 201, description: 'Password set successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or account already has a password',
+  })
+  async setPassword(
+    @UserId() userId: string,
+    @Body() setPasswordDto: SetPasswordDto,
+  ) {
+    await this.usersService.setPassword(userId, setPasswordDto.newPassword);
+    return { message: 'Password set successfully' };
   }
 
   @Post('me/avatar')
@@ -282,7 +327,7 @@ export class UsersController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getMySessions(@UserId() userId: string) {
+  async getMySessions(@UserId() userId: string, @TokenId() tokenId: string) {
     const sessions = await this.tokenService.getUserActiveSessions(userId);
     return sessions.map((session) => ({
       id: session.id,
@@ -292,6 +337,35 @@ export class UsersController {
       createdAt: session.createdAt.toISOString(),
       expiresAt: session.expiresAt.toISOString(),
       revoked: session.revoked,
+      current: session.id === tokenId,
     }));
+  }
+
+  @Delete('me/sessions/:id')
+  @ApiOperation({ summary: 'Revoke a specific session' })
+  @ApiResponse({ status: 200, description: 'Session revoked successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid session ID format' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async revokeSession(
+    @UserId() userId: string,
+    @Param('id', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    await this.tokenService.revokeSessionByTokenId(sessionId, userId);
+    return { message: 'Session revoked successfully' };
+  }
+
+  @Post('me/sessions/revoke-others')
+  @ApiOperation({ summary: 'Revoke all sessions except the current one' })
+  @ApiResponse({
+    status: 200,
+    description: 'Other sessions revoked successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async revokeOtherSessions(
+    @UserId() userId: string,
+    @TokenId() tokenId: string,
+  ) {
+    await this.tokenService.revokeAllUserTokensExceptCurrent(userId, tokenId);
+    return { message: 'Other sessions revoked successfully' };
   }
 }

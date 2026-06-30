@@ -84,6 +84,7 @@ export class AuthService {
         createdAt: user.createdAt.toISOString(),
         role: (user as any).role,
         avatar: user.avatar ?? null,
+        hasPassword: !!user.password,
       },
     };
   }
@@ -186,6 +187,7 @@ export class AuthService {
         createdAt: user.createdAt.toISOString(),
         role: (user as any).role,
         avatar: user.avatar ?? null,
+        hasPassword: !!user.password,
         accessToken: tokens.accessToken,
       },
     };
@@ -244,6 +246,7 @@ export class AuthService {
         createdAt: tokenEntity.user.createdAt.toISOString(),
         role: (tokenEntity.user as any).role,
         avatar: tokenEntity.user.avatar ?? null,
+        hasPassword: !!tokenEntity.user.password,
         accessToken: tokens.accessToken,
       },
     };

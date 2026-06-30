@@ -4,9 +4,11 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 import { User, UserRole } from './user.entity';
@@ -169,6 +171,51 @@ export class UsersService {
       resetPasswordToken: null,
       resetPasswordExpiry: null,
     });
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'This account signed in via a social provider and has no password to change',
+      );
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await this.updatePassword(userId, hashedPassword);
+
+    this.logger.log(`PASSWORD_CHANGED: User ${userId} changed their password`);
+  }
+
+  async setPassword(userId: string, newPassword: string): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.password) {
+      throw new BadRequestException(
+        'This account already has a password — use change password instead',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await this.updatePassword(userId, hashedPassword);
+
+    this.logger.log(`PASSWORD_SET: User ${userId} set a password`);
   }
 
   async updateUserRole(
