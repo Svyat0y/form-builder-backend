@@ -41,16 +41,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       if (!user) {
         user = await this.usersService.findByEmail(email);
 
+        // Set the Google photo only when first linking this account — the
+        // avatar is fully user-owned afterwards (managed via Settings), so
+        // we never overwrite it again on subsequent logins.
         if (user && !user.googleId) {
           await this.usersService.updateUser(user.id, { googleId: id, avatar });
           user.googleId = id;
           user.avatar = avatar;
           this.logger.log(`Google ID linked to existing user: ${email}`);
-        }
-      } else {
-        if (user.avatar !== avatar) {
-          await this.usersService.updateUser(user.id, { avatar });
-          user.avatar = avatar;
         }
       }
 
