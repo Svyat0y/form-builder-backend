@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import { MoreThan, Not, Repository } from 'typeorm';
 import { Token } from './token.entity';
 
 @Injectable()
@@ -226,6 +226,16 @@ export class TokenService {
   async revokeSessionByTokenId(tokenId: string, userId: string): Promise<void> {
     await this.tokenRepository.update(
       { id: tokenId, userId },
+      { revoked: true },
+    );
+  }
+
+  async revokeAllUserTokensExceptCurrent(
+    userId: string,
+    currentTokenId: string,
+  ): Promise<void> {
+    await this.tokenRepository.update(
+      { userId, id: Not(currentTokenId), revoked: false },
       { revoked: true },
     );
   }

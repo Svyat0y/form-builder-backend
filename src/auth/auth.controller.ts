@@ -149,6 +149,7 @@ export class AuthController {
       createdAt: Date;
       role: string;
       avatar: string | null;
+      password?: string | null;
     };
     const deviceInfo = (req.headers['user-agent'] as string) || 'Unknown';
     const ipAddress =
@@ -176,6 +177,7 @@ export class AuthController {
         createdAt: user.createdAt.toISOString(),
         role: user.role,
         avatar: user.avatar,
+        hasPassword: !!user.password,
       }),
     )}`;
 
@@ -203,6 +205,7 @@ export class AuthController {
       createdAt: Date;
       role: string;
       avatar: string | null;
+      password?: string | null;
     };
     const deviceInfo = (req.headers['user-agent'] as string) || 'Unknown';
     const ipAddress =
@@ -230,6 +233,7 @@ export class AuthController {
         createdAt: user.createdAt.toISOString(),
         role: user.role,
         avatar: user.avatar,
+        hasPassword: !!user.password,
       }),
     )}`;
 

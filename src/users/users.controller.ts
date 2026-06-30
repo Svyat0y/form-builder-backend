@@ -3,16 +3,26 @@ import {
   Get,
   UseGuards,
   UsePipes,
+  UseInterceptors,
   Post,
   Patch,
+  Delete,
   Body,
+  Req,
+  Param,
+  ParseUUIDPipe,
+  UploadedFile,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,7 +32,12 @@ import { UserResponseDto } from '../dto/user-response.dto';
 import { UsersService } from './users.service';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
+import { avatarUploadOptions, AVATAR_URL_PREFIX } from './avatar-upload.config';
 import { UserId } from '../auth/decorators/user-id.decorator';
+import { TokenId } from '../auth/decorators/token-id.decorator';
 import { TokenService } from '../tokens/token.service';
 import { UserRole } from './user.entity';
 
@@ -176,7 +191,120 @@ export class UsersController {
       createdAt: user.createdAt.toISOString(),
       role: (user as any).role,
       avatar: user.avatar ?? null,
+      hasPassword: !!user.password,
     };
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile (name)' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(
+    @UserId() userId: string,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    const updatedUser = await this.usersService.updateUser(userId, {
+      name: updateProfileDto.name,
+    });
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      createdAt: updatedUser.createdAt.toISOString(),
+      role: (updatedUser as any).role,
+      avatar: updatedUser.avatar ?? null,
+      hasPassword: !!updatedUser.password,
+    };
+  }
+
+  @Patch('me/password')
+  @ApiOperation({ summary: "Change the current user's password" })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or account has no password (social login)',
+  })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect' })
+  async changePassword(
+    @UserId() userId: string,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    await this.usersService.changePassword(
+      userId,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+
+    return { message: 'Password changed successfully' };
+  }
+
+  @Post('me/password')
+  @ApiOperation({
+    summary: 'Set a password for the current user (social-login accounts)',
+  })
+  @ApiResponse({ status: 201, description: 'Password set successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or account already has a password',
+  })
+  async setPassword(
+    @UserId() userId: string,
+    @Body() setPasswordDto: SetPasswordDto,
+  ) {
+    await this.usersService.setPassword(userId, setPasswordDto.newPassword);
+    return { message: 'Password set successfully' };
+  }
+
+  @Post('me/avatar')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload a new avatar for the current user' })
+  @ApiResponse({ status: 200, description: 'Avatar uploaded successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'No file uploaded or invalid file type/size',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseInterceptors(FileInterceptor('avatar', avatarUploadOptions))
+  async uploadAvatar(
+    @UserId() userId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.usersService.deleteLocalAvatarFile(user.avatar);
+
+    const avatarUrl = `${req.protocol}://${req.get('host')}${AVATAR_URL_PREFIX}${file.filename}`;
+    const updatedUser = await this.usersService.updateUser(userId, {
+      avatar: avatarUrl,
+    });
+
+    return { avatar: updatedUser.avatar };
+  }
+
+  @Delete('me/avatar')
+  @ApiOperation({ summary: 'Remove the current user avatar' })
+  @ApiResponse({ status: 200, description: 'Avatar removed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deleteAvatar(@UserId() userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.usersService.deleteLocalAvatarFile(user.avatar);
+    await this.usersService.updateUser(userId, { avatar: null });
+
+    return { message: 'Avatar removed successfully' };
   }
 
   @Get('me/sessions')
@@ -199,7 +327,7 @@ export class UsersController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getMySessions(@UserId() userId: string) {
+  async getMySessions(@UserId() userId: string, @TokenId() tokenId: string) {
     const sessions = await this.tokenService.getUserActiveSessions(userId);
     return sessions.map((session) => ({
       id: session.id,
@@ -209,6 +337,48 @@ export class UsersController {
       createdAt: session.createdAt.toISOString(),
       expiresAt: session.expiresAt.toISOString(),
       revoked: session.revoked,
+      current: session.id === tokenId,
     }));
+  }
+
+  @Delete('me/sessions/:id')
+  @ApiOperation({ summary: 'Revoke a specific session' })
+  @ApiResponse({ status: 200, description: 'Session revoked successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid session ID format' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async revokeSession(
+    @UserId() userId: string,
+    @Param('id', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    await this.tokenService.revokeSessionByTokenId(sessionId, userId);
+    return { message: 'Session revoked successfully' };
+  }
+
+  @Post('me/sessions/revoke-others')
+  @ApiOperation({ summary: 'Revoke all sessions except the current one' })
+  @ApiResponse({
+    status: 200,
+    description: 'Other sessions revoked successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async revokeOtherSessions(
+    @UserId() userId: string,
+    @TokenId() tokenId: string,
+  ) {
+    await this.tokenService.revokeAllUserTokensExceptCurrent(userId, tokenId);
+    return { message: 'Other sessions revoked successfully' };
+  }
+
+  @Delete('me')
+  @ApiOperation({ summary: "Permanently delete the current user's account" })
+  @ApiResponse({ status: 200, description: 'Account deleted successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins cannot self-delete via this endpoint',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async deleteMyAccount(@UserId() userId: string) {
+    await this.usersService.deleteUser(userId, userId);
+    return { message: 'Account deleted successfully' };
   }
 }
