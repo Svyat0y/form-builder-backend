@@ -122,6 +122,7 @@ export class UsersService {
     this.logger.log(
       `USER_DELETED: User ${id} (${targetRole}) deleted by ${requestingUserId} (${reqRole})`,
     );
+    await this.deleteLocalAvatarFile(user.avatar);
     await this.usersRepository.delete(id);
   }
 

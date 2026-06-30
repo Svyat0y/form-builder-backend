@@ -368,4 +368,17 @@ export class UsersController {
     await this.tokenService.revokeAllUserTokensExceptCurrent(userId, tokenId);
     return { message: 'Other sessions revoked successfully' };
   }
+
+  @Delete('me')
+  @ApiOperation({ summary: "Permanently delete the current user's account" })
+  @ApiResponse({ status: 200, description: 'Account deleted successfully' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins cannot self-delete via this endpoint',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async deleteMyAccount(@UserId() userId: string) {
+    await this.usersService.deleteUser(userId, userId);
+    return { message: 'Account deleted successfully' };
+  }
 }
