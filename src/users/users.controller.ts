@@ -3,16 +3,24 @@ import {
   Get,
   UseGuards,
   UsePipes,
+  UseInterceptors,
   Post,
   Patch,
+  Delete,
   Body,
+  Req,
+  UploadedFile,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,6 +30,8 @@ import { UserResponseDto } from '../dto/user-response.dto';
 import { UsersService } from './users.service';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { avatarUploadOptions, AVATAR_URL_PREFIX } from './avatar-upload.config';
 import { UserId } from '../auth/decorators/user-id.decorator';
 import { TokenService } from '../tokens/token.service';
 import { UserRole } from './user.entity';
@@ -177,6 +187,79 @@ export class UsersController {
       role: (user as any).role,
       avatar: user.avatar ?? null,
     };
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile (name)' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(
+    @UserId() userId: string,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    const updatedUser = await this.usersService.updateUser(userId, {
+      name: updateProfileDto.name,
+    });
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      createdAt: updatedUser.createdAt.toISOString(),
+      role: (updatedUser as any).role,
+      avatar: updatedUser.avatar ?? null,
+    };
+  }
+
+  @Post('me/avatar')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload a new avatar for the current user' })
+  @ApiResponse({ status: 200, description: 'Avatar uploaded successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'No file uploaded or invalid file type/size',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseInterceptors(FileInterceptor('avatar', avatarUploadOptions))
+  async uploadAvatar(
+    @UserId() userId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.usersService.deleteLocalAvatarFile(user.avatar);
+
+    const avatarUrl = `${req.protocol}://${req.get('host')}${AVATAR_URL_PREFIX}${file.filename}`;
+    const updatedUser = await this.usersService.updateUser(userId, {
+      avatar: avatarUrl,
+    });
+
+    return { avatar: updatedUser.avatar };
+  }
+
+  @Delete('me/avatar')
+  @ApiOperation({ summary: 'Remove the current user avatar' })
+  @ApiResponse({ status: 200, description: 'Avatar removed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async deleteAvatar(@UserId() userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.usersService.deleteLocalAvatarFile(user.avatar);
+    await this.usersService.updateUser(userId, { avatar: null });
+
+    return { message: 'Avatar removed successfully' };
   }
 
   @Get('me/sessions')

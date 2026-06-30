@@ -1,4 +1,6 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { createCorsConfig } from './config/cors.config';
@@ -14,16 +16,17 @@ async function bootstrap() {
       ? ['error']
       : ['debug', 'log', 'warn', 'error'];
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: logLevels,
   });
 
   const configService = app.get(ConfigService);
 
-  app.use(helmet());
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cookieParser());
   app.enableCors(createCorsConfig(configService));
   app.useGlobalFilters(new UnifiedExceptionFilter());
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
   const config = new DocumentBuilder()
     .setTitle('Form Builder API')

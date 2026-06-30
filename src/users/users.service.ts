@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { User, UserRole } from './user.entity';
+import { AVATAR_UPLOAD_DIR, AVATAR_URL_PREFIX } from './avatar-upload.config';
 
 @Injectable()
 export class UsersService {
@@ -122,6 +125,23 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
+  }
+
+  // Best-effort deletion of a locally-stored avatar file (no-op for
+  // external URLs, e.g. Google OAuth profile photos).
+  async deleteLocalAvatarFile(avatarUrl: string | null): Promise<void> {
+    if (!avatarUrl) return;
+    const markerIndex = avatarUrl.indexOf(AVATAR_URL_PREFIX);
+    if (markerIndex === -1) return;
+
+    const filename = avatarUrl.slice(markerIndex + AVATAR_URL_PREFIX.length);
+    const filePath = join(AVATAR_UPLOAD_DIR, filename);
+
+    try {
+      await unlink(filePath);
+    } catch (error) {
+      this.logger.warn(`Failed to delete avatar file ${filePath}: ${error}`);
+    }
   }
 
   async setResetToken(
