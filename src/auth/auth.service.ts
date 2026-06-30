@@ -125,6 +125,9 @@ export class AuthService {
       ? TOKEN_CONSTANTS.REFRESH_TOKEN_DB_EXPIRATION
       : TOKEN_CONSTANTS.ACCESS_TOKEN_DB_EXPIRATION;
 
+    // Drop dead rows first so they never count against the active-device cap.
+    await this.tokenService.deleteExpiredTokens(user.id);
+
     if (existingToken) {
       this.logger.debug(
         `Updating existing token for device ${deviceFingerprint.substring(0, 8)}...`,
@@ -155,14 +158,11 @@ export class AuthService {
       );
     }
 
+    // Cap only ACTIVE sessions (the real per-device limit). Revoked rows are
+    // kept separately for audit and must not be able to evict a live session.
     await this.tokenService.deleteOldestActiveTokens(
       user.id,
       TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
-    );
-
-    await this.tokenService.deleteOldestTokens(
-      user.id,
-      TOKEN_CONSTANTS.MAX_TOTAL_TOKENS,
     );
 
     if (rememberMe) {
@@ -335,6 +335,9 @@ export class AuthService {
     ipAddress: string,
   ): Promise<string> {
     const deviceFingerprint = generateDeviceFingerprint(deviceInfo, ipAddress);
+
+    await this.tokenService.deleteExpiredTokens(userId);
+
     const existingToken = await this.tokenService.findTokenByDeviceFingerprint(
       userId,
       deviceFingerprint,
@@ -366,11 +369,6 @@ export class AuthService {
     await this.tokenService.deleteOldestActiveTokens(
       userId,
       TOKEN_CONSTANTS.MAX_ACTIVE_SESSIONS,
-    );
-
-    await this.tokenService.deleteOldestTokens(
-      userId,
-      TOKEN_CONSTANTS.MAX_TOTAL_TOKENS,
     );
 
     this.logger.log(
