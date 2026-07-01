@@ -31,6 +31,9 @@ describe('Auth - Registration (e2e)', () => {
           email: userData.email,
           name: userData.name,
           createdAt: expect.any(String),
+          avatar: null,
+          hasPassword: true,
+          role: 'USER',
         },
       });
     });
