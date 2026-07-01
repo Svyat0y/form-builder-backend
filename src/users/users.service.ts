@@ -130,6 +130,40 @@ export class UsersService {
     return this.usersRepository.find();
   }
 
+  // Authorization for admin session-management endpoints — mirrors deleteUser:
+  // ADMIN can only manage sessions of regular USER accounts, SUPER_ADMIN can
+  // manage anyone's.
+  async assertAdminCanManageSessions(
+    targetUserId: string,
+    requestingUserId: string,
+  ): Promise<void> {
+    this.validateUUID(targetUserId);
+
+    const requestingUser = await this.findById(requestingUserId);
+    if (!requestingUser) {
+      throw new NotFoundException(
+        `Requesting user with ID ${requestingUserId} not found`,
+      );
+    }
+
+    const targetUser = await this.findById(targetUserId);
+    if (!targetUser) {
+      throw new NotFoundException(`User with ID ${targetUserId} not found`);
+    }
+
+    const reqRole = (requestingUser as any).role;
+    const targetRole = (targetUser as any).role;
+
+    if (reqRole === UserRole.ADMIN && targetRole !== UserRole.USER) {
+      this.logger.warn(
+        `SESSION_MANAGE_DENIED: Admin ${requestingUserId} tried to manage sessions of ${targetRole} user ${targetUserId}`,
+      );
+      throw new ForbiddenException(
+        'Admins can only manage sessions of regular users',
+      );
+    }
+  }
+
   // Best-effort deletion of a locally-stored avatar file (no-op for
   // external URLs, e.g. Google OAuth profile photos).
   async deleteLocalAvatarFile(avatarUrl: string | null): Promise<void> {

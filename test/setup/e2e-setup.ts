@@ -74,4 +74,12 @@ export class E2ETestFixture {
   getHttpServer(): Server {
     return this.app.getHttpServer() as unknown as Server;
   }
+
+  /**
+   * Close the app and database connection
+   * Called once in global teardown
+   */
+  async teardown(): Promise<void> {
+    await this.app.close();
+  }
 }

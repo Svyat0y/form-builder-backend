@@ -32,6 +32,9 @@ describe('Auth - Login (e2e)', () => {
           name: userData.name,
           createdAt: expect.any(String),
           accessToken: expect.any(String),
+          avatar: null,
+          hasPassword: true,
+          role: 'USER',
         },
       });
     });

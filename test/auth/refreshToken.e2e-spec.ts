@@ -47,6 +47,9 @@ describe('Auth - Refresh Token (e2e)', () => {
           name: loginResponse.body.user.name,
           createdAt: expect.any(String),
           accessToken: expect.any(String),
+          avatar: null,
+          hasPassword: true,
+          role: 'USER',
         },
       });
 
