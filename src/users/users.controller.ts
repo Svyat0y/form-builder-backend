@@ -381,4 +381,89 @@ export class UsersController {
     await this.usersService.deleteUser(userId, userId);
     return { message: 'Account deleted successfully' };
   }
+
+  @Get(':userId/sessions')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: "Get a user's active sessions (admin)" })
+  @ApiResponse({ status: 200, description: 'Returns array of active sessions' })
+  @ApiResponse({ status: 400, description: 'Invalid user ID format' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only manage sessions of regular users',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserSessions(
+    @Param('userId', new ParseUUIDPipe()) targetUserId: string,
+    @UserId() requestingUserId: string,
+  ) {
+    await this.usersService.assertAdminCanManageSessions(
+      targetUserId,
+      requestingUserId,
+    );
+
+    const sessions =
+      await this.tokenService.getUserActiveSessions(targetUserId);
+    return sessions.map((session) => ({
+      id: session.id,
+      deviceInfo: session.deviceInfo,
+      deviceFingerprint: session.deviceFingerprint,
+      lastUsed: session.lastUsed.toISOString(),
+      createdAt: session.createdAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      revoked: session.revoked,
+    }));
+  }
+
+  @Delete(':userId/sessions/:sessionId')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Revoke a specific session of a user (admin)' })
+  @ApiResponse({ status: 200, description: 'Session revoked successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid ID format' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only manage sessions of regular users',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async revokeUserSession(
+    @Param('userId', new ParseUUIDPipe()) targetUserId: string,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @UserId() requestingUserId: string,
+  ) {
+    await this.usersService.assertAdminCanManageSessions(
+      targetUserId,
+      requestingUserId,
+    );
+
+    await this.tokenService.revokeSessionByTokenId(sessionId, targetUserId);
+    return { message: 'Session revoked successfully' };
+  }
+
+  @Post(':userId/sessions/revoke-all')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Revoke all sessions of a user (admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'All sessions revoked successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid user ID format' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only manage sessions of regular users',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async revokeAllUserSessions(
+    @Param('userId', new ParseUUIDPipe()) targetUserId: string,
+    @UserId() requestingUserId: string,
+  ) {
+    await this.usersService.assertAdminCanManageSessions(
+      targetUserId,
+      requestingUserId,
+    );
+
+    await this.tokenService.revokeAllUserTokens(targetUserId);
+    return { message: 'All sessions revoked successfully' };
+  }
 }
