@@ -34,7 +34,10 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   avatar: string | null;
 
-  @CreateDateColumn()
+  // timestamptz, not the TypeORM default `timestamp` — a bare `timestamp`
+  // column is timezone-naive, and node-postgres reads it back assuming the
+  // process's local TZ, which skews every value by the server's UTC offset.
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
   @Column({
@@ -47,6 +50,6 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   resetPasswordToken: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   resetPasswordExpiry: Date | null;
 }

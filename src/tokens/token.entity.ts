@@ -25,10 +25,13 @@ export class Token {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  // timestamptz, not `timestamp` — a bare `timestamp` column is timezone-naive,
+  // and node-postgres reads it back assuming the process's local TZ, which
+  // skews every value by the server's UTC offset.
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamptz' })
   expiresAt: Date;
 
   @Column({ type: 'boolean', default: false })
@@ -43,6 +46,6 @@ export class Token {
   @Column({ type: 'varchar', nullable: true })
   deviceFingerprint: string | null;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastUsed: Date;
 }

@@ -7,6 +7,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
+import { FormsModule } from '../src/forms/forms.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AuthModule } from '../src/auth/auth.module';
     }),
     UsersModule,
     AuthModule,
+    FormsModule,
   ],
   controllers: [AppController],
   providers: [
