@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -22,6 +23,8 @@ import { UserId } from '../auth/decorators/user-id.decorator';
 import { FormsService } from './forms.service';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
+import { ListFormsQueryDto } from './dto/list-forms-query.dto';
+import { PaginatedFormsResponse } from './dto/paginated-forms.response';
 
 @ApiTags('Forms')
 @ApiBearerAuth('JWT-auth')
@@ -32,10 +35,19 @@ export class FormsController {
   constructor(private formsService: FormsService) {}
 
   @Get()
-  @ApiOperation({ summary: "List the current user's forms" })
-  @ApiResponse({ status: 200, description: 'Returns array of forms' })
-  async list(@UserId() ownerId: string) {
-    return this.formsService.findAllByOwner(ownerId);
+  @ApiOperation({
+    summary: "List the current user's forms (paginated, searchable by title)",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns a page of forms',
+    type: PaginatedFormsResponse,
+  })
+  async list(
+    @UserId() ownerId: string,
+    @Query() query: ListFormsQueryDto,
+  ): Promise<PaginatedFormsResponse> {
+    return this.formsService.findAllByOwner(ownerId, query);
   }
 
   @Post()

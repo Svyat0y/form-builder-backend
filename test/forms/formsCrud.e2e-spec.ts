@@ -78,13 +78,79 @@ describe('Forms - CRUD (e2e)', () => {
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(200);
 
-      expect(response.body).toHaveLength(2);
-      expect(response.body[0].id).toBe(second.body.id);
+      expect(response.body.total).toBe(2);
+      expect(response.body.page).toBe(1);
+      expect(response.body.items).toHaveLength(2);
+      expect(response.body.items[0].id).toBe(second.body.id);
       expect(
-        response.body.every((f: { title: string }) =>
+        response.body.items.every((f: { title: string }) =>
           ['Form A', 'Form B'].includes(f.title),
         ),
       ).toBe(true);
+    });
+
+    it('paginates with page/limit and reports total across all pages', async () => {
+      const { authResponse } = await createAuthenticatedUser(server());
+      const accessToken = authResponse.user.accessToken;
+
+      for (let i = 0; i < 5; i++) {
+        await request(server())
+          .post('/api/forms')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ title: `Paginated form ${i}` })
+          .expect(201);
+      }
+
+      const firstPage = await request(server())
+        .get('/api/forms?page=1&limit=2')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(firstPage.body.items).toHaveLength(2);
+      expect(firstPage.body.total).toBe(5);
+      expect(firstPage.body.page).toBe(1);
+      expect(firstPage.body.limit).toBe(2);
+
+      const secondPage = await request(server())
+        .get('/api/forms?page=2&limit=2')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(secondPage.body.items).toHaveLength(2);
+      const firstPageIds = firstPage.body.items.map(
+        (f: { id: string }) => f.id,
+      );
+      const secondPageIds = secondPage.body.items.map(
+        (f: { id: string }) => f.id,
+      );
+      expect(
+        secondPageIds.every((id: string) => !firstPageIds.includes(id)),
+      ).toBe(true);
+    });
+
+    it('filters by title with the search query param', async () => {
+      const { authResponse } = await createAuthenticatedUser(server());
+      const accessToken = authResponse.user.accessToken;
+
+      await request(server())
+        .post('/api/forms')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Customer feedback survey' })
+        .expect(201);
+      await request(server())
+        .post('/api/forms')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Event registration' })
+        .expect(201);
+
+      const response = await request(server())
+        .get('/api/forms?search=feedback')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.items).toHaveLength(1);
+      expect(response.body.items[0].title).toBe('Customer feedback survey');
+      expect(response.body.total).toBe(1);
     });
   });
 

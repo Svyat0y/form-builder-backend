@@ -6,10 +6,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Form, FormStatus } from './form.entity';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
+import { ListFormsQueryDto } from './dto/list-forms-query.dto';
+import { PaginatedFormsResponse } from './dto/paginated-forms.response';
 
 @Injectable()
 export class FormsService {
@@ -20,11 +22,24 @@ export class FormsService {
     private formsRepository: Repository<Form>,
   ) {}
 
-  async findAllByOwner(ownerId: string): Promise<Form[]> {
-    return this.formsRepository.find({
-      where: { ownerId },
+  async findAllByOwner(
+    ownerId: string,
+    query: ListFormsQueryDto,
+  ): Promise<PaginatedFormsResponse> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const [items, total] = await this.formsRepository.findAndCount({
+      where: {
+        ownerId,
+        ...(query.search ? { title: ILike(`%${query.search}%`) } : {}),
+      },
       order: { updatedAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return { items, total, page, limit };
   }
 
   async create(ownerId: string, dto: CreateFormDto): Promise<Form> {
