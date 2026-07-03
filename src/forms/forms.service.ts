@@ -68,6 +68,17 @@ export class FormsService {
       form.settings = { ...form.settings, ...dto.settings };
     }
 
+    // An ACTIVE form must keep at least one field — emptying it via PATCH
+    // pulls the form off the public link, same rule the editor applies
+    // client-side (see form-editor.md, decision #7 and the auto-unpublish
+    // note). The response carries the new status, so clients stay in sync.
+    if (form.status === FormStatus.ACTIVE && form.fields.length === 0) {
+      form.status = FormStatus.CLOSED;
+      this.logger.log(
+        `FORM_AUTO_CLOSED: Form ${id} lost its last field while ACTIVE`,
+      );
+    }
+
     return this.formsRepository.save(form);
   }
 
@@ -82,6 +93,15 @@ export class FormsService {
 
     if (form.status === FormStatus.ACTIVE) {
       throw new BadRequestException('Form is already published');
+    }
+
+    // Mirrors the editor's disabled Publish button — an empty form can't go
+    // live (form-editor.md, decision #7). Enforced here too so the rule
+    // holds for direct API calls, not just the UI.
+    if (form.fields.length === 0) {
+      throw new BadRequestException(
+        'A form must have at least one field to be published',
+      );
     }
 
     form.status = FormStatus.ACTIVE;
