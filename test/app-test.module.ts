@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
 import { FormsModule } from '../src/forms/forms.module';
+import { ResponsesModule } from '../src/responses/responses.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { FormsModule } from '../src/forms/forms.module';
     UsersModule,
     AuthModule,
     FormsModule,
+    ResponsesModule,
   ],
   controllers: [AppController],
   providers: [
