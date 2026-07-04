@@ -79,7 +79,27 @@ export class FeedbackService {
       feedback.handledAt = new Date();
     }
 
-    return this.feedbackRepository.save(feedback);
+    await this.feedbackRepository.save(feedback);
+
+    // Reload with the same safe relation shape as findAll() — the caller
+    // (the admin list UI) replaces the row in place with this response, so
+    // it needs `user`/`handledByUser` populated, not just the bare row.
+    const updated = await this.feedbackRepository.findOne({
+      where: { id },
+      relations: ['user', 'handledByUser'],
+      select: {
+        id: true,
+        userId: true,
+        message: true,
+        status: true,
+        handledByUserId: true,
+        handledAt: true,
+        createdAt: true,
+        user: { id: true, name: true, email: true },
+        handledByUser: { id: true, name: true },
+      },
+    });
+    return updated!;
   }
 
   // DELETE /api/feedback/:id — [Roles: ADMIN/SUPER_ADMIN], once handled.

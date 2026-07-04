@@ -24,6 +24,7 @@ import { validationPipeConfig } from '../config/validation.config';
 import { UserId } from '../auth/decorators/user-id.decorator';
 import { UserRole } from '../users/user.entity';
 import { FeedbackService } from './feedback.service';
+import { Feedback } from './feedback.entity';
 import { CreateFeedbackDto } from './dto/create-feedback.dto';
 import { UpdateFeedbackStatusDto } from './dto/update-feedback-status.dto';
 import { ListFeedbackQueryDto } from './dto/list-feedback-query.dto';
@@ -60,15 +61,16 @@ export class FeedbackController {
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Update feedback status (ADMIN/SUPER_ADMIN)' })
-  @ApiResponse({ status: 200, description: 'Status updated' })
+  @ApiResponse({ status: 200, type: Feedback })
   @ApiResponse({ status: 404, description: 'Feedback not found' })
   async updateStatus(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateFeedbackStatusDto,
     @UserId() adminUserId: string,
-  ) {
-    await this.feedbackService.updateStatus(id, dto.status, adminUserId);
-    return { message: 'Status updated' };
+  ): Promise<Feedback> {
+    // Returns the updated row (with user/handledByUser) rather than a bare
+    // message — the admin list UI replaces the row in place with this.
+    return this.feedbackService.updateStatus(id, dto.status, adminUserId);
   }
 
   @Delete(':id')
