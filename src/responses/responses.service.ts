@@ -101,6 +101,7 @@ export class ResponsesService {
     // lose data, the owner's next fetch would show it anyway.
     this.eventEmitter.emit('form.response.created', {
       formId: form.id,
+      formTitle: form.title,
       ownerId: form.ownerId,
       responsesCount: form.responsesCount + 1,
       responseId: result.id,

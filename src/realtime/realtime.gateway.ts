@@ -11,13 +11,21 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenService } from '../tokens/token.service';
 
-// Same allowlist as REST (see src/config/cors.config.ts), read directly from
-// env since @WebSocketGateway options are evaluated at class-decoration time,
-// before Nest DI is available.
-const allowedOrigins = (process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter((origin) => origin.length > 0);
+// Same allowlist as REST (see src/config/cors.config.ts). Read lazily inside
+// the origin callback, NOT as a top-level constant: @WebSocketGateway
+// options are evaluated when this file is first imported, which happens
+// while main.ts is still resolving `import { AppModule }` — before
+// ConfigModule/dotenv have populated process.env. A top-level constant here
+// silently froze allowedOrigins to [] forever, which made the browser
+// (unlike a raw Node socket.io-client, which never enforces CORS at all)
+// fail the handshake with no visible error.
+function isOriginAllowed(origin: string): boolean {
+  const allowedOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
+  return allowedOrigins.includes(origin);
+}
 
 interface JwtPayload {
   userId: string;
@@ -31,7 +39,13 @@ interface JwtPayload {
 @WebSocketGateway({
   namespace: '/realtime',
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+      }
+    },
     credentials: true,
   },
 })
@@ -100,6 +114,45 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       responseId: payload.responseId,
       createdAt: payload.createdAt,
     });
+  }
+
+  // NotificationsService emits this after persisting a notification (either
+  // an admin message or an auto-generated form-response notice) — see §8.
+  @OnEvent('notification.created')
+  handleNotificationCreated(payload: {
+    id: string;
+    userId: string;
+    type: string;
+    title: string;
+    body: string | null;
+    data: Record<string, unknown>;
+    createdAt: Date;
+  }): void {
+    this.server.to(`user:${payload.userId}`).emit('notification:new', {
+      id: payload.id,
+      type: payload.type,
+      title: payload.title,
+      body: payload.body,
+      data: payload.data,
+      createdAt: payload.createdAt,
+    });
+  }
+
+  // NotificationsService emits this once per broadcast (not once per
+  // recipient row) — a deliberate exception to "every push is addressed":
+  // the message is identical for every user, so we skip enumerating rooms
+  // and push straight to every connected socket in the namespace. The DB
+  // rows (one per user, bulk-inserted) remain the source of truth; this
+  // WS event only nudges already-connected clients to refetch/show it.
+  @OnEvent('notification.broadcast')
+  handleNotificationBroadcast(payload: {
+    type: string;
+    title: string;
+    body: string | null;
+    data: Record<string, unknown>;
+    createdAt: Date;
+  }): void {
+    this.server.emit('notification:new', payload);
   }
 
   // TokenService emits this from every revoke path (logout, session revoke,

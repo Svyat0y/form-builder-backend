@@ -11,6 +11,8 @@ import { AuthModule } from './auth/auth.module';
 import { FormsModule } from './forms/forms.module';
 import { ResponsesModule } from './responses/responses.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { RealtimeModule } from './realtime/realtime.module';
     FormsModule,
     ResponsesModule,
     RealtimeModule,
+    NotificationsModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [
