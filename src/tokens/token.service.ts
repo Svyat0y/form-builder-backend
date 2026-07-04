@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, MoreThan, Not, Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Token } from './token.entity';
 
 @Injectable()
@@ -9,7 +10,14 @@ export class TokenService {
   constructor(
     @InjectRepository(Token)
     private tokenRepository: Repository<Token>,
+    private eventEmitter: EventEmitter2,
   ) {}
+
+  // RealtimeGateway listens for this to disconnect the matching socket —
+  // a revoked session must not keep a live WS connection (see §7).
+  private emitRevoked(tokenId: string, userId: string): void {
+    this.eventEmitter.emit('token.revoked', { tokenId, userId });
+  }
 
   async findTokenByDeviceFingerprint(
     userId: string,
@@ -189,18 +197,30 @@ export class TokenService {
   }
 
   async revokeToken(accessToken: string): Promise<void> {
+    const token = await this.tokenRepository.findOne({
+      where: { accessToken },
+    });
     await this.tokenRepository.update({ accessToken }, { revoked: true });
+    if (token) this.emitRevoked(token.id, token.userId);
   }
 
   async revokeAllUserTokens(userId: string): Promise<void> {
+    const tokens = await this.tokenRepository.find({
+      where: { userId, revoked: false },
+    });
     await this.tokenRepository.update(
       { userId, revoked: false },
       { revoked: true },
     );
+    tokens.forEach((token) => this.emitRevoked(token.id, token.userId));
   }
 
   async revokeTokenByRefresh(refreshToken: string): Promise<void> {
+    const token = await this.tokenRepository.findOne({
+      where: { refreshToken },
+    });
     await this.tokenRepository.update({ refreshToken }, { revoked: true });
+    if (token) this.emitRevoked(token.id, token.userId);
   }
 
   async getUserActiveSessions(userId: string): Promise<Token[]> {
@@ -221,15 +241,20 @@ export class TokenService {
       { id: tokenId, userId },
       { revoked: true },
     );
+    this.emitRevoked(tokenId, userId);
   }
 
   async revokeAllUserTokensExceptCurrent(
     userId: string,
     currentTokenId: string,
   ): Promise<void> {
+    const tokens = await this.tokenRepository.find({
+      where: { userId, id: Not(currentTokenId), revoked: false },
+    });
     await this.tokenRepository.update(
       { userId, id: Not(currentTokenId), revoked: false },
       { revoked: true },
     );
+    tokens.forEach((token) => this.emitRevoked(token.id, token.userId));
   }
 }

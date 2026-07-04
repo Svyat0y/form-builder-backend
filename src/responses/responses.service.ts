@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Form, FormStatus } from '../forms/form.entity';
 import { FormsService } from '../forms/forms.service';
 import type { FormField } from '../forms/form-field.types';
@@ -34,6 +35,7 @@ export class ResponsesService {
     private responsesRepository: Repository<FormResponse>,
     private formsService: FormsService,
     private dataSource: DataSource,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // GET /:id/public — only ACTIVE forms are visible; DRAFT/CLOSED look like
@@ -79,7 +81,7 @@ export class ResponsesService {
       meta.ipAddress,
     );
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const response = manager.create(FormResponse, {
         formId: form.id,
         answers,
@@ -93,6 +95,19 @@ export class ResponsesService {
 
       return { id: saved.id, createdAt: saved.createdAt };
     });
+
+    // Emitted after commit — WS is an acceleration, not the source of truth
+    // (see §6/§7 of forms-realtime-architecture.md). A dropped event doesn't
+    // lose data, the owner's next fetch would show it anyway.
+    this.eventEmitter.emit('form.response.created', {
+      formId: form.id,
+      ownerId: form.ownerId,
+      responsesCount: form.responsesCount + 1,
+      responseId: result.id,
+      createdAt: result.createdAt,
+    });
+
+    return result;
   }
 
   private validateAndSanitizeAnswers(
