@@ -174,7 +174,7 @@ export class UsersService {
   }
 
   // Best-effort deletion of a locally-stored avatar file (no-op for
-  // external URLs, e.g. Google OAuth profile photos).
+  // external URLs, e.g. Google OAuth profile photos)
   async deleteLocalAvatarFile(avatarUrl: string | null): Promise<void> {
     if (!avatarUrl) return;
     const markerIndex = avatarUrl.indexOf(AVATAR_URL_PREFIX);
