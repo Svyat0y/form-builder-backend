@@ -69,6 +69,7 @@ export class ResponsesService {
   ): Promise<{ id: string; createdAt: Date }> {
     const form = await this.formsRepository.findOne({
       where: { id, status: FormStatus.ACTIVE },
+      relations: ['owner'],
     });
 
     if (!form) {
@@ -103,6 +104,7 @@ export class ResponsesService {
       formId: form.id,
       formTitle: form.title,
       ownerId: form.ownerId,
+      ownerEmail: form.owner.email,
       responsesCount: form.responsesCount + 1,
       responseId: result.id,
       createdAt: result.createdAt,
