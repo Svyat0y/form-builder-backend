@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
@@ -20,6 +21,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   private isValidUUID(id: string): boolean {
@@ -48,7 +50,14 @@ export class UsersService {
     user.role = UserRole.USER;
     user.avatar = avatar ?? null;
 
-    return this.usersRepository.save(user);
+    const saved = await this.usersRepository.save(user);
+
+    // NotificationsService listens for this to send the welcome message —
+    // covers email signup and both OAuth strategies, since they all funnel
+    // through this one method. See notifications.service.ts §8 addendum.
+    this.eventEmitter.emit('user.registered', { userId: saved.id });
+
+    return saved;
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -165,7 +174,7 @@ export class UsersService {
   }
 
   // Best-effort deletion of a locally-stored avatar file (no-op for
-  // external URLs, e.g. Google OAuth profile photos).
+  // external URLs, e.g. Google OAuth profile photos)
   async deleteLocalAvatarFile(avatarUrl: string | null): Promise<void> {
     if (!avatarUrl) return;
     const markerIndex = avatarUrl.indexOf(AVATAR_URL_PREFIX);
