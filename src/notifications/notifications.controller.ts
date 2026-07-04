@@ -60,7 +60,9 @@ export class NotificationsController {
   }
 
   @Post('read-all')
-  @ApiOperation({ summary: "Mark all of the current user's notifications as read" })
+  @ApiOperation({
+    summary: "Mark all of the current user's notifications as read",
+  })
   @ApiResponse({ status: 200, description: 'All notifications marked as read' })
   async markAllRead(@UserId() userId: string) {
     await this.notificationsService.markAllRead(userId);
@@ -90,7 +92,9 @@ export class NotificationsController {
   @Post('send')
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Send an admin message to a user (ADMIN/SUPER_ADMIN)' })
+  @ApiOperation({
+    summary: 'Send an admin message to a user (ADMIN/SUPER_ADMIN)',
+  })
   @ApiResponse({ status: 201, description: 'Notification sent' })
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   async send(@Body() dto: SendNotificationDto, @UserId() fromUserId: string) {
@@ -101,17 +105,20 @@ export class NotificationsController {
   @Post('broadcast')
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Send an admin message to every user (ADMIN/SUPER_ADMIN)' })
-  @ApiResponse({ status: 201, description: 'Notification broadcast to all users' })
+  @ApiOperation({
+    summary: 'Send an admin message to every user (ADMIN/SUPER_ADMIN)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Notification broadcast to all users',
+  })
   @ApiResponse({ status: 403, description: 'Insufficient permissions' })
   async broadcast(
     @Body() dto: BroadcastNotificationDto,
     @UserId() fromUserId: string,
   ) {
-    const { recipientCount } = await this.notificationsService.broadcastAdminMessage(
-      dto,
-      fromUserId,
-    );
+    const { recipientCount } =
+      await this.notificationsService.broadcastAdminMessage(dto, fromUserId);
     return { message: `Notification sent to ${recipientCount} users` };
   }
 }

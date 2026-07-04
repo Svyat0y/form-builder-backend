@@ -49,7 +49,9 @@ interface JwtPayload {
     credentials: true,
   },
 })
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   // Typed as Namespace, not Server: @WebSocketGateway({ namespace: ... })
   // makes Nest inject the /realtime namespace instance at runtime, and only
   // Namespace exposes .adapter/.sockets as the room/socket maps we need
@@ -85,6 +87,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       client.data.tokenId = tokenInDb.id;
 
       await client.join(`user:${payload.userId}`);
+
+      // Admins additionally join a role room so admin-only events (new
+      // feedback submissions) can be pushed to every admin without knowing
+      // their individual user ids in advance.
+      if (['ADMIN', 'SUPER_ADMIN'].includes(tokenInDb.user.role)) {
+        await client.join('role:admin');
+      }
+
       this.logger.debug(`Socket connected: user ${payload.userId}`);
     } catch (error) {
       this.logger.warn(`Socket auth failed: ${(error as Error).message}`);
@@ -153,6 +163,19 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     createdAt: Date;
   }): void {
     this.server.emit('notification:new', payload);
+  }
+
+  // FeedbackService emits this after a user submits feedback — pushes to
+  // every connected admin so the Feedback tab updates live instead of
+  // requiring a page reload.
+  @OnEvent('feedback.created')
+  handleFeedbackCreated(payload: {
+    id: string;
+    userId: string;
+    message: string;
+    createdAt: Date;
+  }): void {
+    this.server.to('role:admin').emit('feedback:new', payload);
   }
 
   // TokenService emits this from every revoke path (logout, session revoke,

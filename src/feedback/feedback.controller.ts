@@ -57,6 +57,18 @@ export class FeedbackController {
     return this.feedbackService.findAll(query);
   }
 
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get a single feedback entry (ADMIN/SUPER_ADMIN)' })
+  @ApiResponse({ status: 200, type: Feedback })
+  @ApiResponse({ status: 404, description: 'Feedback not found' })
+  async findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<Feedback> {
+    return this.feedbackService.findOne(id);
+  }
+
   @Patch(':id/status')
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @UseGuards(RolesGuard)

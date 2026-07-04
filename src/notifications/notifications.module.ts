@@ -11,10 +11,7 @@ import { UsersModule } from '../users/users.module';
   // src/common/guards/roles.guard.ts), same as other admin-gated modules.
   // User entity is registered directly (read-only id lookup for broadcast),
   // not routed through UsersService to avoid coupling to its business logic.
-  imports: [
-    TypeOrmModule.forFeature([Notification, User]),
-    UsersModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Notification, User]), UsersModule],
   controllers: [NotificationsController],
   providers: [NotificationsService],
 })

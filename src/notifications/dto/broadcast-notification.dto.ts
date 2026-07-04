@@ -1,10 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class BroadcastNotificationDto {
   @ApiProperty({ example: 'Scheduled maintenance', maxLength: 120 })
@@ -13,7 +8,10 @@ export class BroadcastNotificationDto {
   @MaxLength(120)
   title: string;
 
-  @ApiProperty({ example: 'We will be down briefly this Sunday.', maxLength: 2000 })
+  @ApiProperty({
+    example: 'We will be down briefly this Sunday.',
+    maxLength: 2000,
+  })
   @IsString()
   @IsNotEmpty({ message: 'Body is required' })
   @MaxLength(2000)

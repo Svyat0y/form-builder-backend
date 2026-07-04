@@ -159,7 +159,9 @@ describe('Responses - public/submit/list/stats (e2e)', () => {
 
     it('returns 403 for a non-owner', async () => {
       const owner = await createAuthenticatedUser(server());
-      const formId = await createActiveForm(owner.authResponse.user.accessToken);
+      const formId = await createActiveForm(
+        owner.authResponse.user.accessToken,
+      );
 
       const other = await createAuthenticatedUser(server());
 

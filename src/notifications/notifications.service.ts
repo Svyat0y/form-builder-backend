@@ -9,7 +9,10 @@ import { BroadcastNotificationDto } from './dto/broadcast-notification.dto';
 import { ListNotificationsQueryDto } from './dto/list-notifications-query.dto';
 import { PaginatedNotificationsResponse } from './dto/paginated-notifications.response';
 
-const FEEDBACK_ACTION = { actionLabel: 'Send feedback', actionUrl: '/feedback' };
+const FEEDBACK_ACTION = {
+  actionLabel: 'Send feedback',
+  actionUrl: '/feedback',
+};
 
 @Injectable()
 export class NotificationsService {
@@ -183,6 +186,20 @@ export class NotificationsService {
       title: 'Welcome to Form builder',
       body: "Glad you're here. If something's unclear or you spot a bug, we'd like to hear about it.",
       data: { ...FEEDBACK_ACTION },
+    });
+  }
+
+  // FeedbackService emits this on submit — same decoupling as the two
+  // listeners above. RealtimeGateway separately listens on the same event
+  // to push a live update to admins.
+  @OnEvent('feedback.created')
+  async handleFeedbackCreated(payload: { userId: string }): Promise<void> {
+    await this.create({
+      userId: payload.userId,
+      type: NotificationType.SYSTEM,
+      title: 'Thanks for your feedback',
+      body: "We've received your message and will take a look. If it needs a reply, we'll follow up by email.",
+      data: {},
     });
   }
 
