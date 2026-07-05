@@ -5,6 +5,7 @@ import { AppService } from '../src/app.service';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { UsersModule } from '../src/users/users.module';
 import { AuthModule } from '../src/auth/auth.module';
 import { FormsModule } from '../src/forms/forms.module';
@@ -13,6 +14,7 @@ import { ResponsesModule } from '../src/responses/responses.module';
 @Module({
   imports: [
     ThrottlerModule.forRoot([]),
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
