@@ -24,6 +24,13 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserId } from './decorators/user-id.decorator';
 
+// FRONTEND_URL may or may not have a trailing slash depending on how it's
+// set — a trailing slash would produce a double slash before the path
+// (e.g. "example.com//auth/callback"), which React Router fails to match.
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
 @ApiTags('Auth')
 @Controller('api/auth')
 @UsePipes(validationPipeConfig)
@@ -169,7 +176,7 @@ export class AuthController {
 
     this.authService.setRefreshTokenCookie(res, tokens.refreshToken);
 
-    const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&user=${encodeURIComponent(
+    const frontendUrl = `${stripTrailingSlash(process.env.FRONTEND_URL || 'http://localhost:3000')}/auth/callback?token=${tokens.accessToken}&user=${encodeURIComponent(
       JSON.stringify({
         id: user.id,
         email: user.email,
@@ -225,7 +232,7 @@ export class AuthController {
 
     this.authService.setRefreshTokenCookie(res, tokens.refreshToken);
 
-    const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/callback?token=${tokens.accessToken}&user=${encodeURIComponent(
+    const frontendUrl = `${stripTrailingSlash(process.env.FRONTEND_URL || 'http://localhost:3000')}/auth/callback?token=${tokens.accessToken}&user=${encodeURIComponent(
       JSON.stringify({
         id: user.id,
         email: user.email,
