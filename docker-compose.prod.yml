@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: form-builder-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - form-builder-network
+
+  app:
+    build: .
+    container_name: form-builder-app
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_HOST: postgres
+    ports:
+      - "3001:3001"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      - postgres
+    networks:
+      - form-builder-network
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  form-builder-network:
+    driver: bridge
