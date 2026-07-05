@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: test-jwt-secret-for-ci-only
     steps:
       - uses: actions/checkout@v4
 
