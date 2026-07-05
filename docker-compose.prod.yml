@@ -18,6 +18,7 @@ services:
       - form-builder-network
 
   app:
+    image: ghcr.io/svyat0y/form-builder-backend:latest
     build: .
     container_name: form-builder-app
     restart: always
