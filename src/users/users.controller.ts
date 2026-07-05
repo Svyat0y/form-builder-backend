@@ -53,7 +53,9 @@ export class UsersController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Get all users (ADMIN/SUPER_ADMIN)' })
   @ApiResponse({
     status: 200,
     description: 'Returns array of users',
