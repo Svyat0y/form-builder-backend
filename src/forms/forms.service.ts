@@ -12,6 +12,8 @@ import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
 import { ListFormsQueryDto } from './dto/list-forms-query.dto';
 import { PaginatedFormsResponse } from './dto/paginated-forms.response';
+import { UsersService } from '../users/users.service';
+import { UserRole } from '../users/user.entity';
 
 @Injectable()
 export class FormsService {
@@ -20,6 +22,7 @@ export class FormsService {
   constructor(
     @InjectRepository(Form)
     private formsRepository: Repository<Form>,
+    private usersService: UsersService,
   ) {}
 
   async findAllByOwner(
@@ -33,6 +36,7 @@ export class FormsService {
       where: {
         ownerId,
         ...(query.search ? { title: ILike(`%${query.search}%`) } : {}),
+        ...(query.status ? { status: query.status } : {}),
       },
       order: { updatedAt: 'DESC' },
       skip: (page - 1) * limit,
@@ -142,5 +146,79 @@ export class FormsService {
     const unpublished = await this.formsRepository.save(form);
     this.logger.log(`FORM_UNPUBLISHED: Form ${id} unpublished by ${ownerId}`);
     return unpublished;
+  }
+
+  // Admin browsing of another user's forms — Admin Panel "Forms" tab. Mirrors
+  // the ADMIN/SUPER_ADMIN session-management restriction in
+  // UsersService.assertAdminCanManageSessions: ADMIN can only act on regular
+  // USER accounts, SUPER_ADMIN can act on anyone's.
+  async findAllByOwnerAdmin(
+    requestingUserId: string,
+    targetUserId: string,
+    query: ListFormsQueryDto,
+  ): Promise<PaginatedFormsResponse> {
+    await this.assertAdminCanManageForms(requestingUserId, targetUserId);
+    return this.findAllByOwner(targetUserId, query);
+  }
+
+  async unpublishAdmin(id: string, requestingUserId: string): Promise<Form> {
+    const form = await this.findFormById(id);
+    await this.assertAdminCanManageForms(requestingUserId, form.ownerId);
+
+    if (form.status !== FormStatus.ACTIVE) {
+      throw new BadRequestException('Only a published form can be unpublished');
+    }
+
+    form.status = FormStatus.CLOSED;
+    const unpublished = await this.formsRepository.save(form);
+    this.logger.log(
+      `FORM_UNPUBLISHED_BY_ADMIN: Form ${id} unpublished by admin ${requestingUserId}`,
+    );
+    return unpublished;
+  }
+
+  async removeAdmin(id: string, requestingUserId: string): Promise<void> {
+    const form = await this.findFormById(id);
+    await this.assertAdminCanManageForms(requestingUserId, form.ownerId);
+
+    await this.formsRepository.delete(id);
+    this.logger.log(
+      `FORM_DELETED_BY_ADMIN: Form ${id} deleted by admin ${requestingUserId}`,
+    );
+  }
+
+  private async findFormById(id: string): Promise<Form> {
+    const form = await this.formsRepository.findOne({ where: { id } });
+    if (!form) {
+      throw new NotFoundException(`Form with ID ${id} not found`);
+    }
+    return form;
+  }
+
+  private async assertAdminCanManageForms(
+    requestingUserId: string,
+    targetUserId: string,
+  ): Promise<void> {
+    const requestingUser = await this.usersService.findById(requestingUserId);
+    if (!requestingUser) {
+      throw new NotFoundException(
+        `Requesting user with ID ${requestingUserId} not found`,
+      );
+    }
+
+    const targetUser = await this.usersService.findById(targetUserId);
+    if (!targetUser) {
+      throw new NotFoundException(`User with ID ${targetUserId} not found`);
+    }
+
+    const reqRole = (requestingUser as any).role;
+    const targetRole = (targetUser as any).role;
+
+    if (reqRole === UserRole.ADMIN && targetRole !== UserRole.USER) {
+      this.logger.warn(
+        `FORM_MANAGE_DENIED: Admin ${requestingUserId} tried to manage forms of ${targetRole} user ${targetUserId}`,
+      );
+      throw new ForbiddenException('Admins can only manage forms of regular users');
+    }
   }
 }

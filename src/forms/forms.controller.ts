@@ -20,6 +20,9 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { validationPipeConfig } from '../config/validation.config';
 import { UserId } from '../auth/decorators/user-id.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { UserRole } from '../users/user.entity';
 import { FormsService } from './forms.service';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
@@ -124,5 +127,66 @@ export class FormsController {
     @UserId() ownerId: string,
   ) {
     return this.formsService.unpublish(id, ownerId);
+  }
+
+  // Admin Panel "Forms" tab — browse/unpublish/delete another user's forms.
+  // ADMIN can only act on regular USER accounts, SUPER_ADMIN can act on
+  // anyone's (mirrors the session-management rule in UsersController).
+  @Get('admin/users/:userId')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: "List a specific user's forms (admin)" })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns a page of the target user\'s forms',
+    type: PaginatedFormsResponse,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only browse forms of regular users',
+  })
+  async listForUserAdmin(
+    @Param('userId', new ParseUUIDPipe()) targetUserId: string,
+    @UserId() requestingUserId: string,
+    @Query() query: ListFormsQueryDto,
+  ): Promise<PaginatedFormsResponse> {
+    return this.formsService.findAllByOwnerAdmin(
+      requestingUserId,
+      targetUserId,
+      query,
+    );
+  }
+
+  @Post('admin/:id/unpublish')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: "Unpublish any user's form (admin)" })
+  @ApiResponse({ status: 200, description: 'Form unpublished' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only manage forms of regular users',
+  })
+  async unpublishAdmin(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UserId() requestingUserId: string,
+  ) {
+    return this.formsService.unpublishAdmin(id, requestingUserId);
+  }
+
+  @Delete('admin/:id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: "Delete any user's form (admin)" })
+  @ApiResponse({ status: 200, description: 'Form deleted' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only manage forms of regular users',
+  })
+  async removeAdmin(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UserId() requestingUserId: string,
+  ) {
+    await this.formsService.removeAdmin(id, requestingUserId);
+    return { message: 'Form deleted successfully' };
   }
 }
