@@ -161,6 +161,31 @@ export class FormsService {
     return this.findAllByOwner(targetUserId, query);
   }
 
+  async publishAdmin(id: string, requestingUserId: string): Promise<Form> {
+    const form = await this.findFormById(id);
+    await this.assertAdminCanManageForms(requestingUserId, form.ownerId);
+
+    if (form.status === FormStatus.ACTIVE) {
+      throw new BadRequestException('Form is already published');
+    }
+    if (form.fields.length === 0) {
+      throw new BadRequestException(
+        'A form must have at least one field to be published',
+      );
+    }
+
+    form.status = FormStatus.ACTIVE;
+    if (!form.publishedAt) {
+      form.publishedAt = new Date();
+    }
+
+    const published = await this.formsRepository.save(form);
+    this.logger.log(
+      `FORM_PUBLISHED_BY_ADMIN: Form ${id} published by admin ${requestingUserId}`,
+    );
+    return published;
+  }
+
   async unpublishAdmin(id: string, requestingUserId: string): Promise<Form> {
     const form = await this.findFormById(id);
     await this.assertAdminCanManageForms(requestingUserId, form.ownerId);

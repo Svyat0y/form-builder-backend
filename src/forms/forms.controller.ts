@@ -157,6 +157,22 @@ export class FormsController {
     );
   }
 
+  @Post('admin/:id/publish')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: "Publish any user's form (admin)" })
+  @ApiResponse({ status: 200, description: 'Form published' })
+  @ApiResponse({
+    status: 403,
+    description: 'Admins can only manage forms of regular users',
+  })
+  async publishAdmin(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UserId() requestingUserId: string,
+  ) {
+    return this.formsService.publishAdmin(id, requestingUserId);
+  }
+
   @Post('admin/:id/unpublish')
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @UseGuards(RolesGuard)
