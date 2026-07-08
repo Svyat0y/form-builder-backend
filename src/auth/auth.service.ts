@@ -85,6 +85,7 @@ export class AuthService {
         role: (user as any).role,
         avatar: user.avatar ?? null,
         hasPassword: !!user.password,
+        emailOnResponse: user.emailOnResponse,
       },
     };
   }
@@ -188,6 +189,7 @@ export class AuthService {
         role: (user as any).role,
         avatar: user.avatar ?? null,
         hasPassword: !!user.password,
+        emailOnResponse: user.emailOnResponse,
         accessToken: tokens.accessToken,
       },
     };
@@ -247,6 +249,7 @@ export class AuthService {
         role: (tokenEntity.user as any).role,
         avatar: tokenEntity.user.avatar ?? null,
         hasPassword: !!tokenEntity.user.password,
+        emailOnResponse: tokenEntity.user.emailOnResponse,
         accessToken: tokens.accessToken,
       },
     };

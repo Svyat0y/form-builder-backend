@@ -52,4 +52,7 @@ export class User {
 
   @Column({ type: 'timestamptz', nullable: true })
   resetPasswordExpiry: Date | null;
+
+  @Column({ type: 'boolean', default: true })
+  emailOnResponse: boolean;
 }
