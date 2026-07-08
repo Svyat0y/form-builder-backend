@@ -33,6 +33,7 @@ describe('Auth - Registration (e2e)', () => {
           createdAt: expect.any(String),
           avatar: null,
           hasPassword: true,
+          emailOnResponse: true,
           role: 'USER',
         },
       });
