@@ -105,6 +105,7 @@ export class ResponsesService {
       formTitle: form.title,
       ownerId: form.ownerId,
       ownerEmail: form.owner.email,
+      ownerEmailOnResponse: form.owner.emailOnResponse,
       responsesCount: form.responsesCount + 1,
       responseId: result.id,
       createdAt: result.createdAt,

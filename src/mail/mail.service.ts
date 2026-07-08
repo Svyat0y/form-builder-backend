@@ -101,7 +101,12 @@ export class MailService {
     formId: string;
     formTitle: string;
     ownerEmail: string;
+    ownerEmailOnResponse: boolean;
   }): Promise<void> {
+    if (!payload.ownerEmailOnResponse) {
+      return;
+    }
+
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     const responsesUrl = `${frontendUrl}/forms/${payload.formId}/responses`;
 

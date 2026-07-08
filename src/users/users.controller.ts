@@ -33,6 +33,7 @@ import { UsersService } from './users.service';
 import { DeleteUserDto } from './dto/delete-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { avatarUploadOptions, AVATAR_URL_PREFIX } from './avatar-upload.config';
@@ -194,6 +195,7 @@ export class UsersController {
       role: (user as any).role,
       avatar: user.avatar ?? null,
       hasPassword: !!user.password,
+      emailOnResponse: user.emailOnResponse,
     };
   }
 
@@ -218,7 +220,27 @@ export class UsersController {
       role: (updatedUser as any).role,
       avatar: updatedUser.avatar ?? null,
       hasPassword: !!updatedUser.password,
+      emailOnResponse: updatedUser.emailOnResponse,
     };
+  }
+
+  @Patch('me/notifications')
+  @ApiOperation({ summary: "Update the current user's notification preferences" })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification preferences updated successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateNotificationPrefs(
+    @UserId() userId: string,
+    @Body() updateNotificationPrefsDto: UpdateNotificationPrefsDto,
+  ) {
+    const updatedUser = await this.usersService.updateUser(userId, {
+      emailOnResponse: updateNotificationPrefsDto.emailOnResponse,
+    });
+
+    return { emailOnResponse: updatedUser.emailOnResponse };
   }
 
   @Patch('me/password')
