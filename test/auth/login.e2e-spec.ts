@@ -34,6 +34,7 @@ describe('Auth - Login (e2e)', () => {
           accessToken: expect.any(String),
           avatar: null,
           hasPassword: true,
+          emailOnResponse: true,
           role: 'USER',
         },
       });
