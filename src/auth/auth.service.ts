@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, CookieOptions } from 'express';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
@@ -42,20 +42,35 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  // Shared attributes for the refresh cookie. The frontend (Netlify) and the
+  // backend (duckdns.org) live on different sites, so the refresh cookie travels
+  // cross-site on the /auth/refresh XHR. A `SameSite=Lax` cookie is NOT sent on
+  // cross-site background requests, which silently broke refresh (session died
+  // ~1h after login, when the access token expired). Cross-site requires
+  // `SameSite=None`, which browsers only accept together with `Secure`.
+  // Locally both run on http://localhost (same-site) where None+Secure is
+  // rejected, so fall back to Lax there.
+  private refreshCookieOptions(): CookieOptions {
+    const isProd = process.env.NODE_ENV === 'production';
+    return {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+    };
+  }
+
   public setRefreshTokenCookie(res: Response, refreshToken: string) {
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...this.refreshCookieOptions(),
       maxAge: TOKEN_CONSTANTS.REFRESH_TOKEN_COOKIE_MAX_AGE,
-      path: '/',
     });
   }
 
   public clearRefreshTokenCookie(res: Response) {
-    res.clearCookie('refreshToken', {
-      path: '/',
-    });
+    // Attributes must match those used when setting, otherwise some browsers
+    // refuse to clear the cookie.
+    res.clearCookie('refreshToken', this.refreshCookieOptions());
   }
 
   async register(email: string, name: string, password: string) {
